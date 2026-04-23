@@ -1,20 +1,41 @@
-import os, shutil
+from __future__ import annotations
 
-BASE = "./vault"
-NOTES = os.path.join(BASE, "notes")
-ATT = os.path.join(BASE, "attachments")
+import os
+import shutil
+from pathlib import Path
 
-os.makedirs(NOTES, exist_ok=True)
-os.makedirs(ATT, exist_ok=True)
 
-for root, dirs, files in os.walk(BASE):
-    for f in files:
-        path = os.path.join(root, f)
+BASE = Path("./vault")
+NOTES = BASE / "notes"
+ATTACHMENTS = BASE / "attachments"
 
-        if f.endswith(".md"):
-            shutil.move(path, os.path.join(NOTES, f))
 
-        elif not f.endswith(".py"):
-            shutil.move(path, os.path.join(ATT, f))
+def reorganize_vault(base: Path = BASE) -> None:
+    notes = base / "notes"
+    attachments = base / "attachments"
 
-print("Vault reorganizado.")
+    notes.mkdir(parents=True, exist_ok=True)
+    attachments.mkdir(parents=True, exist_ok=True)
+
+    for root, dirs, files in os.walk(base):
+        root_path = Path(root)
+
+        if root_path in {notes, attachments}:
+            continue
+
+        for filename in files:
+            path = root_path / filename
+
+            if filename.endswith(".md"):
+                shutil.move(str(path), str(notes / filename))
+            elif not filename.endswith(".py"):
+                shutil.move(str(path), str(attachments / filename))
+
+
+def main() -> None:
+    reorganize_vault()
+    print("Vault reorganizado.")
+
+
+if __name__ == "__main__":
+    main()

@@ -32,6 +32,15 @@ python3 brain search "o que e skill de IA?"
 python3 brain watch
 ```
 
+## Testes
+
+```bash
+python3 -m unittest discover -s tests -v
+python3 tests/check_coverage.py
+```
+
+O segundo comando valida cobertura de 100% nos arquivos de codigo do projeto.
+
 ## Fluxo sugerido
 
 1. Criar ou ajustar uma skill em `.codex/skills`.
