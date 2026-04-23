@@ -1,3 +1,8 @@
+---
+name: note_refinement
+description: Elevar a qualidade editorial da nota sem mudar sua intenção. Use ao revisar notas confusas, repetitivas ou mal estruturadas, melhorando clareza, simplicidade e consistência. Sempre que precisar refinar, editar ou melhorar uma nota existente.
+---
+
 id: note_refinement
 title: Note Refinement
 version: 2.0

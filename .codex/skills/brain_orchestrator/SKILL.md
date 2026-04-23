@@ -1,3 +1,8 @@
+---
+name: brain_orchestrator
+description: Brain Orchestrator. Use conforme descrito na skill.
+---
+
 id: brain_orchestrator
 title: Brain Orchestrator
 version: 2.0
@@ -19,6 +24,7 @@ Regras de orquestracao:
 - aplicar apenas as skills necessarias para o estado atual da nota
 - preservar o sentido original do conteudo
 - manter o frontmatter coerente com o tipo da nota
+- preservar metadados existentes, atualizando apenas o necessario
 - atualizar `last_updated` ao final de qualquer alteracao relevante
 
 Politica por metadata:

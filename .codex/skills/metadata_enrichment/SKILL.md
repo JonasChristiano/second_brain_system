@@ -1,3 +1,8 @@
+---
+name: metadata_enrichment
+description: Metadata Enrichment. Use conforme descrito na skill.
+---
+
 id: metadata_enrichment
 title: Metadata Enrichment
 version: 1.0
@@ -25,13 +30,15 @@ Campos opcionais recomendados:
 
 Passos:
 1. verificar se a nota ja possui frontmatter YAML
-2. completar metadados faltantes sem apagar informacao valida
+2. completar metadados faltantes sem apagar ou sobrescrever informacao valida
 3. normalizar datas para `YYYY-MM-DD`
 4. atualizar `last_updated` sempre que houver mudanca substancial
 5. manter consistencia entre metadados, titulo e conteudo
 
 Regras:
 - preservar `created_at` se ja existir e estiver correto
+- preservar campos existentes como `type`, `status`, `aliases`, `tags` e `source` quando estiverem coerentes
+- nao reescrever metadados so por preferencia de formato
 - evitar campos vazios ou metadados decorativos
 - nao inventar fonte externa quando ela nao existir
 - se o tipo da nota for sensivel, manter edicao conservadora

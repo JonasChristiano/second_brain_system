@@ -38,10 +38,22 @@ def cmd_watch(args: argparse.Namespace) -> int:
     return run_command([sys.executable, "whatcher.py"])
 
 
+def cmd_restructure(args: argparse.Namespace) -> int:
+    return run_command([sys.executable, "restructure.py"])
+
+
 def cmd_refine(args: argparse.Namespace) -> int:
     ensure_codex_available()
-    instruction = args.instruction or "Refinar as notas em vault/notes/"
-    prompt = build_prompt("note_refinement", instruction, str(NOTES_DIR))
+    target = args.file or str(NOTES_DIR)
+
+    if args.instruction:
+        instruction = args.instruction
+    elif args.file:
+        instruction = f"Refinar a nota em {args.file}"
+    else:
+        instruction = "Refinar as notas em vault/notes/"
+
+    prompt = build_prompt("note_refinement", instruction, target)
     return run_command(["codex", prompt])
 
 
@@ -52,7 +64,7 @@ def cmd_skills_list(args: argparse.Namespace) -> int:
         return 0
 
     for skill_path in skills:
-        print(skill_path.stem)
+        print(skill_path.name)
     return 0
 
 
@@ -64,13 +76,21 @@ def cmd_skills_show(args: argparse.Namespace) -> int:
 
 def cmd_skills_new(args: argparse.Namespace) -> int:
     skill_id = slugify(args.name)
-    skill_path = SKILLS_DIR / f"{skill_id}.md"
+    skill_dir = SKILLS_DIR / skill_id
+    skill_path = skill_dir / "SKILL.md"
 
     if skill_path.exists():
         raise SystemExit(f"A skill '{skill_id}' ja existe.")
 
+    skill_dir.mkdir(parents=True, exist_ok=True)
+
     template = "\n".join(
         [
+            "---",
+            f"name: {skill_id}",
+            f"description: {args.goal or 'Descrever o objetivo principal da skill'}",
+            "---",
+            "",
             f"id: {skill_id}",
             f"title: {args.name.strip()}",
             "version: 1.0",
@@ -113,6 +133,32 @@ def cmd_skills_run(args: argparse.Namespace) -> int:
     return run_command(["codex", prompt])
 
 
+def cmd_eval(args: argparse.Namespace) -> int:
+    import sys
+    from pathlib import Path
+    import subprocess
+
+    # Run the eval script directly
+    script_path = ROOT / ".codex" / "skills" / "scripts" / "run_eval.py"
+    cmd = [
+        sys.executable, str(script_path),
+        "--eval-set", args.eval_set,
+        "--skill-path", str(SKILLS_DIR / args.skill),
+        "--num-workers", str(args.num_workers),
+        "--timeout", str(args.timeout),
+        "--runs-per-query", str(args.runs_per_query),
+        "--trigger-threshold", str(args.trigger_threshold),
+    ]
+    if args.description:
+        cmd.extend(["--description", args.description])
+    if args.model:
+        cmd.extend(["--model", args.model])
+    if args.verbose:
+        cmd.append("--verbose")
+    
+    return subprocess.run(cmd, cwd=ROOT).returncode
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="brain",
@@ -141,6 +187,12 @@ def build_parser() -> argparse.ArgumentParser:
     index_parser = subparsers.add_parser("index", help="Reconstrui o indice vetorial.")
     index_parser.set_defaults(func=cmd_index)
 
+    restructure_parser = subparsers.add_parser(
+        "restructure",
+        help="Reorganiza um vault existente para a estrutura padrao do projeto.",
+    )
+    restructure_parser.set_defaults(func=cmd_restructure)
+
     watch_parser = subparsers.add_parser(
         "watch", help="Ativa auto-commit para mudancas no vault."
     )
@@ -148,6 +200,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     refine_parser = subparsers.add_parser(
         "refine", help="Aplica a skill de refinamento nas notas."
+    )
+    refine_parser.add_argument(
+        "file",
+        nargs="?",
+        help="Arquivo especifico para refinamento. Se omitido, usa vault/notes/.",
     )
     refine_parser.add_argument(
         "--instruction", help="Instrucao opcional para o refinamento."
@@ -183,6 +240,20 @@ def build_parser() -> argparse.ArgumentParser:
         "--dry-run", action="store_true", help="Mostra o prompt sem executar."
     )
     skills_run.set_defaults(func=cmd_skills_run)
+
+    eval_parser = subparsers.add_parser(
+        "eval", help="Avalia triggers de skills usando queries de teste."
+    )
+    eval_parser.add_argument("--eval-set", required=True, help="Caminho para o arquivo JSON de eval set.")
+    eval_parser.add_argument("--skill", required=True, help="Nome da skill a avaliar.")
+    eval_parser.add_argument("--description", help="Descricao alternativa da skill.")
+    eval_parser.add_argument("--num-workers", type=int, default=10, help="Numero de workers paralelos.")
+    eval_parser.add_argument("--timeout", type=int, default=30, help="Timeout por query em segundos.")
+    eval_parser.add_argument("--runs-per-query", type=int, default=3, help="Numero de runs por query.")
+    eval_parser.add_argument("--trigger-threshold", type=float, default=0.5, help="Limite de trigger rate.")
+    eval_parser.add_argument("--model", help="Modelo a usar para claude -p.")
+    eval_parser.add_argument("--verbose", action="store_true", help="Saida verbosa.")
+    eval_parser.set_defaults(func=cmd_eval)
 
     return parser
 

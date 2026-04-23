@@ -1,3 +1,8 @@
+---
+name: idea_expansion
+description: Idea Expansion. Use conforme descrito na skill.
+---
+
 id: idea_expansion
 title: Idea Expansion
 version: 2.0

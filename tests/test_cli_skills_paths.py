@@ -40,24 +40,28 @@ class SkillsTests(unittest.TestCase):
     def test_ensure_skill_exists_success_and_failure(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             skills_dir = Path(temp_dir)
-            (skills_dir / "demo.md").write_text("demo", encoding="utf-8")
+            demo_dir = skills_dir / "demo"
+            demo_dir.mkdir()
+            (demo_dir / "SKILL.md").write_text("demo", encoding="utf-8")
 
             with mock.patch.object(skills, "SKILLS_DIR", skills_dir):
-                self.assertEqual(skills.ensure_skill_exists("demo"), skills_dir / "demo.md")
+                self.assertEqual(skills.ensure_skill_exists("demo"), demo_dir / "SKILL.md")
                 with self.assertRaises(SystemExit):
                     skills.ensure_skill_exists("missing")
 
     def test_list_skills_load_text_and_slugify(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             skills_dir = Path(temp_dir)
-            (skills_dir / "b.md").write_text(" b \n", encoding="utf-8")
-            (skills_dir / "a.md").write_text(" a \n", encoding="utf-8")
+            (skills_dir / "b").mkdir()
+            (skills_dir / "b" / "SKILL.md").write_text(" b \n", encoding="utf-8")
+            (skills_dir / "a").mkdir()
+            (skills_dir / "a" / "SKILL.md").write_text(" a \n", encoding="utf-8")
 
             with mock.patch.object(skills, "SKILLS_DIR", skills_dir):
                 listed = skills.list_skills()
 
-            self.assertEqual([path.name for path in listed], ["a.md", "b.md"])
-            self.assertEqual(skills.load_text(skills_dir / "a.md"), "a")
+            self.assertEqual([path.name for path in listed], ["a", "b"])
+            self.assertEqual(skills.load_text(skills_dir / "a" / "SKILL.md"), "a")
             self.assertEqual(skills.slugify("Meu-Teste Legal"), "meu_teste_legal")
 
     def test_build_prompt_with_all_sections(self) -> None:
@@ -67,7 +71,9 @@ class SkillsTests(unittest.TestCase):
             context.write_text("contexto", encoding="utf-8")
             skills_dir = root / "skills"
             skills_dir.mkdir()
-            (skills_dir / "demo.md").write_text("skill-body", encoding="utf-8")
+            demo_dir = skills_dir / "demo"
+            demo_dir.mkdir()
+            (demo_dir / "SKILL.md").write_text("---\nname: demo\ndescription: demo skill\n---\nskill-body", encoding="utf-8")
 
             with (
                 mock.patch.object(skills, "CONTEXT_FILE", context),
@@ -86,7 +92,9 @@ class SkillsTests(unittest.TestCase):
             context = root / "context.md"
             skills_dir = root / "skills"
             skills_dir.mkdir()
-            (skills_dir / "demo.md").write_text("skill-body", encoding="utf-8")
+            demo_dir = skills_dir / "demo"
+            demo_dir.mkdir()
+            (demo_dir / "SKILL.md").write_text("---\nname: demo\ndescription: demo skill\n---\nskill-body", encoding="utf-8")
 
             with (
                 mock.patch.object(skills, "CONTEXT_FILE", context),
@@ -130,6 +138,7 @@ class CliTests(unittest.TestCase):
         with mock.patch.object(cli, "run_command", return_value=3) as run_mock:
             self.assertEqual(cli.cmd_search(argparse.Namespace(query="busca")), 3)
             self.assertEqual(cli.cmd_index(argparse.Namespace()), 3)
+            self.assertEqual(cli.cmd_restructure(argparse.Namespace()), 3)
             self.assertEqual(cli.cmd_watch(argparse.Namespace()), 3)
 
         self.assertEqual(
@@ -137,6 +146,7 @@ class CliTests(unittest.TestCase):
             [
                 mock.call([sys.executable, "rag/search.py", "busca"]),
                 mock.call([sys.executable, "rag/indexer.py"]),
+                mock.call([sys.executable, "restructure.py"]),
                 mock.call([sys.executable, "whatcher.py"]),
             ],
         )
@@ -146,13 +156,55 @@ class CliTests(unittest.TestCase):
             mock.patch.object(cli, "build_prompt", return_value="refine-prompt") as prompt_mock,
             mock.patch.object(cli, "run_command", return_value=4) as run_mock_2,
         ):
-            self.assertEqual(cli.cmd_refine(argparse.Namespace(instruction=None)), 4)
+            self.assertEqual(cli.cmd_refine(argparse.Namespace(file=None, instruction=None)), 4)
         prompt_mock.assert_called_once_with(
             "note_refinement",
             "Refinar as notas em vault/notes/",
             str(cli.NOTES_DIR),
         )
         run_mock_2.assert_called_once_with(["codex", "refine-prompt"])
+
+        with (
+            mock.patch.object(cli, "ensure_codex_available"),
+            mock.patch.object(cli, "build_prompt", return_value="file-refine-prompt") as prompt_mock_2,
+            mock.patch.object(cli, "run_command", return_value=5) as run_mock_3,
+        ):
+            self.assertEqual(
+                cli.cmd_refine(
+                    argparse.Namespace(
+                        file="vault/notes/comando-cat.md",
+                        instruction=None,
+                    )
+                ),
+                5,
+            )
+        prompt_mock_2.assert_called_once_with(
+            "note_refinement",
+            "Refinar a nota em vault/notes/comando-cat.md",
+            "vault/notes/comando-cat.md",
+        )
+        run_mock_3.assert_called_once_with(["codex", "file-refine-prompt"])
+
+        with (
+            mock.patch.object(cli, "ensure_codex_available"),
+            mock.patch.object(cli, "build_prompt", return_value="custom-refine-prompt") as prompt_mock_3,
+            mock.patch.object(cli, "run_command", return_value=6) as run_mock_4,
+        ):
+            self.assertEqual(
+                cli.cmd_refine(
+                    argparse.Namespace(
+                        file="vault/notes/comando-cat.md",
+                        instruction="Refinar so a introducao",
+                    )
+                ),
+                6,
+            )
+        prompt_mock_3.assert_called_once_with(
+            "note_refinement",
+            "Refinar so a introducao",
+            "vault/notes/comando-cat.md",
+        )
+        run_mock_4.assert_called_once_with(["codex", "custom-refine-prompt"])
 
     def test_cmd_skills_list_show_new_and_run(self) -> None:
         fake_skill = Path("/tmp/demo.md")
@@ -194,12 +246,12 @@ class CliTests(unittest.TestCase):
                         ),
                         0,
                     )
-                created = skills_dir / "nova_skill.md"
+                created = skills_dir / "nova_skill" / "SKILL.md"
                 self.assertTrue(created.exists())
                 created_text = created.read_text(encoding="utf-8")
                 self.assertIn("Objetivo teste", created_text)
                 self.assertIn("last_updated: 2026-04-23", created_text)
-                self.assertIn("skills/nova_skill.md", stdout.getvalue())
+                self.assertIn("skills/nova_skill/SKILL.md", stdout.getvalue())
 
                 with self.assertRaises(SystemExit):
                     cli.cmd_skills_new(

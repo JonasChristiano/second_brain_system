@@ -1,3 +1,8 @@
+---
+name: atomic_capture
+description: Atomic Capture. Use conforme descrito na skill.
+---
+
 id: atomic_capture
 title: Atomic Capture
 version: 2.0

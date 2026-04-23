@@ -1,3 +1,8 @@
+---
+name: contextual_linking
+description: Contextual Linking. Use conforme descrito na skill.
+---
+
 id: contextual_linking
 title: Contextual Linking
 version: 2.0

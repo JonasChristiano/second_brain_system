@@ -1,3 +1,8 @@
+---
+name: split_ideas
+description: Split Ideas. Use conforme descrito na skill.
+---
+
 id: split_ideas
 title: Split Ideas
 version: 2.0
