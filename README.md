@@ -54,15 +54,28 @@ O segundo comando valida cobertura de 100% nos arquivos de codigo do projeto.
 As skills seguem um formato simples em Markdown:
 
 ```md
-id="nome_da_skill"
+id: nome_da_skill
+title: Nome da Skill
+version: 1.0
+last_updated: 2026-04-23
+scope: vault/notes
 
 Objetivo:
 - descrever o que a skill faz
+
+Quando usar:
+- descrever os cenarios de ativacao
+
+Passos:
+1. descrever a sequencia principal
 
 Regras:
 - definir comportamento
 - indicar limites
 - explicar o formato de saida
+
+Saida esperada:
+- descrever o resultado final
 ```
 
 O `brain` combina automaticamente o contexto global, a skill selecionada e a instrucao passada no terminal antes de chamar o `codex`.

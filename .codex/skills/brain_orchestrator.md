@@ -1,13 +1,29 @@
-id="brain_orchestrator"
+id: brain_orchestrator
+title: Brain Orchestrator
+version: 2.0
+last_updated: 2026-04-23
+scope: vault/notes
 
-Pipeline:
+Objetivo:
+- coordenar o fluxo completo de criacao e manutencao de notas no Brain System
 
-1. atomic_capture
-2. split_ideas (se necessário)
-3. note_refinement
-4. contextual_linking
-5. idea_expansion (se superficial)
+Pipeline padrao:
+1. `atomic_capture`
+2. `split_ideas` se houver mais de uma ideia principal
+3. `note_refinement`
+4. `metadata_enrichment`
+5. `contextual_linking`
+6. `idea_expansion` se a nota estiver superficial
 
-Respeitar metadata:
-- knowledge_base → modo seguro
-- note → modo livre
+Regras de orquestracao:
+- aplicar apenas as skills necessarias para o estado atual da nota
+- preservar o sentido original do conteudo
+- manter o frontmatter coerente com o tipo da nota
+- atualizar `last_updated` ao final de qualquer alteracao relevante
+
+Politica por metadata:
+- `type: knowledge_base` -> modo seguro, sem reescrita agressiva
+- `type: note` -> modo livre, com evolucao gradual permitida
+
+Saida esperada:
+- nota mais clara, bem estruturada, com links e metadados consistentes

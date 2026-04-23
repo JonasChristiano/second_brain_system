@@ -71,15 +71,28 @@ def cmd_skills_new(args: argparse.Namespace) -> int:
 
     template = "\n".join(
         [
-            f'id="{skill_id}"',
+            f"id: {skill_id}",
+            f"title: {args.name.strip()}",
+            "version: 1.0",
+            "last_updated: 2026-04-23",
+            "scope: vault/notes",
             "",
             "Objetivo:",
             f"- {args.goal or 'Descrever o objetivo principal da skill'}",
+            "",
+            "Quando usar:",
+            "- descrever os cenarios em que a skill deve ser aplicada",
+            "",
+            "Passos:",
+            "1. descrever a sequencia principal de execucao",
             "",
             "Regras:",
             "- definir comportamento principal",
             "- indicar limites e cuidados",
             "- apontar formato de saida esperado",
+            "",
+            "Saida esperada:",
+            "- descrever o resultado ideal da execucao",
         ]
     )
 

@@ -196,7 +196,9 @@ class CliTests(unittest.TestCase):
                     )
                 created = skills_dir / "nova_skill.md"
                 self.assertTrue(created.exists())
-                self.assertIn("Objetivo teste", created.read_text(encoding="utf-8"))
+                created_text = created.read_text(encoding="utf-8")
+                self.assertIn("Objetivo teste", created_text)
+                self.assertIn("last_updated: 2026-04-23", created_text)
                 self.assertIn("skills/nova_skill.md", stdout.getvalue())
 
                 with self.assertRaises(SystemExit):
@@ -250,4 +252,3 @@ class CliTests(unittest.TestCase):
                 self.assertEqual(cli.main(), 22)
             search_args = search_mock.call_args.args[0]
             self.assertEqual(search_args.query, "minha busca")
-
