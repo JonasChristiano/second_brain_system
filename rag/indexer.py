@@ -1,18 +1,17 @@
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
-from llama_index.vector_stores.chroma import ChromaVectorStore
-import chromadb
+from __future__ import annotations
+
+import sys
+from pathlib import Path
 
 
-def build():
-    docs = SimpleDirectoryReader("./vault/notes").load_data()
-    db = chromadb.Client()
-    col = db.get_or_create_collection("brain")
+ROOT = Path(__file__).resolve().parents[1]
+SRC_DIR = ROOT / "src"
 
-    store = ChromaVectorStore(chroma_collection=col)
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
-    VectorStoreIndex.from_documents(docs, vector_store=store)
-    print("Index pronto")
+from brain_system.rag import build_index
 
 
 if __name__ == "__main__":
-    build()
+    build_index()

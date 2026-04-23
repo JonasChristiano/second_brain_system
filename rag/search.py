@@ -1,17 +1,17 @@
+from __future__ import annotations
+
 import sys
-from llama_index.core import VectorStoreIndex
-from llama_index.vector_stores.chroma import ChromaVectorStore
-import chromadb
+from pathlib import Path
 
 
-def search(q):
-    db = chromadb.Client()
-    col = db.get_or_create_collection("brain")
-    store = ChromaVectorStore(chroma_collection=col)
+ROOT = Path(__file__).resolve().parents[1]
+SRC_DIR = ROOT / "src"
 
-    index = VectorStoreIndex.from_vector_store(store)
-    print(index.as_query_engine().query(q))
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+from brain_system.rag import search_index
 
 
 if __name__ == "__main__":
-    search(sys.argv[1])
+    search_index(sys.argv[1])

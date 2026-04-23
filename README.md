@@ -4,11 +4,20 @@ Sistema local para organizar notas, aplicar skills de IA e consultar uma base de
 
 ## Estrutura
 
-- `brain`: CLI principal para skills, captura de ideias e RAG
+- `brain`: ponto de entrada da CLI
+- `src/brain_system/`: logica principal do projeto
 - `.codex/context.md`: contexto global do sistema
 - `.codex/skills/*.md`: skills locais em Markdown
-- `vault/notes`: notas do vault
-- `rag/`: indexacao e busca vetorial
+- `rag/`: wrappers simples para indexacao e busca
+- `vault/`: notas e anexos em um Git separado
+
+## Organizacao atual
+
+- `src/brain_system/cli.py`: comandos da CLI
+- `src/brain_system/skills.py`: leitura e composicao de prompts de skills
+- `src/brain_system/vault_watch.py`: auto-commit do vault
+- `src/brain_system/rag.py`: indexacao e busca vetorial
+- `src/brain_system/paths.py`: caminhos centrais do projeto
 
 ## Uso rapido
 
