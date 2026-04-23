@@ -82,7 +82,7 @@ class DashboardTests(unittest.TestCase):
 
 
 class RestructureTests(unittest.TestCase):
-    def test_reorganize_vault_moves_markdown_and_attachments(self) -> None:
+    def test_reorganize_vault_moves_markdown_and_attachments_and_creates_structure(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             base = Path(temp_dir) / "vault"
             base.mkdir()
@@ -92,19 +92,63 @@ class RestructureTests(unittest.TestCase):
             (nested / "file.txt").write_text("arquivo", encoding="utf-8")
             (nested / "keep.py").write_text("print('ok')", encoding="utf-8")
 
-            restructure.reorganize_vault(base)
+            result = restructure.reorganize_vault(base)
 
             self.assertTrue((base / "notes" / "note.md").exists())
             self.assertTrue((base / "attachments" / "file.txt").exists())
             self.assertTrue((nested / "keep.py").exists())
+            self.assertTrue((base / "templates").exists())
+            self.assertTrue((base / "inbox").exists())
+            self.assertTrue((base / "archive").exists())
+            self.assertEqual(result["notes_moved"], 1)
+            self.assertEqual(result["attachments_moved"], 1)
+
+    def test_reorganize_vault_preserves_standard_directories_and_git(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir) / "vault"
+            notes = base / "notes"
+            attachments = base / "attachments"
+            git_dir = base / ".git"
+            notes.mkdir(parents=True)
+            attachments.mkdir(parents=True)
+            git_dir.mkdir(parents=True)
+            (notes / "existing.md").write_text("ok", encoding="utf-8")
+            (attachments / "existing.txt").write_text("ok", encoding="utf-8")
+            (git_dir / "config").write_text("git", encoding="utf-8")
+
+            result = restructure.reorganize_vault(base)
+
+            self.assertTrue((notes / "existing.md").exists())
+            self.assertTrue((attachments / "existing.txt").exists())
+            self.assertTrue((git_dir / "config").exists())
+            self.assertEqual(result["notes_moved"], 0)
+            self.assertEqual(result["attachments_moved"], 0)
+
+    def test_reorganize_vault_skips_nested_standard_named_directories(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir) / "vault"
+            nested_notes = base / "legacy" / "notes"
+            nested_notes.mkdir(parents=True)
+            (nested_notes / "keep.md").write_text("ok", encoding="utf-8")
+
+            result = restructure.reorganize_vault(base)
+
+            self.assertTrue((nested_notes / "keep.md").exists())
+            self.assertFalse((base / "notes" / "keep.md").exists())
+            self.assertEqual(result["notes_moved"], 0)
 
     def test_main_prints_message(self) -> None:
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
             with mock.patch.object(restructure, "reorganize_vault") as reorganize_mock:
+                reorganize_mock.return_value = {
+                    "notes_moved": 2,
+                    "attachments_moved": 3,
+                }
                 restructure.main()
         reorganize_mock.assert_called_once_with()
         self.assertIn("Vault reorganizado.", stdout.getvalue())
+        self.assertIn("Notas movidas: 2.", stdout.getvalue())
 
     def test_script_entrypoint_runs_main(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

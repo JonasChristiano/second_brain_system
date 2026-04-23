@@ -29,6 +29,9 @@ python3 brain skills run note_refinement --target vault/notes --instruction "Ref
 python3 brain add "Skill de IA define um comportamento reutilizavel"
 python3 brain index
 python3 brain search "o que e skill de IA?"
+python3 brain refine
+python3 brain refine vault/notes/comando-cat.md
+python3 brain restructure
 python3 brain watch
 ```
 
@@ -47,7 +50,8 @@ O segundo comando valida cobertura de 100% nos arquivos de codigo do projeto.
 2. Executar a skill com `python3 brain skills run ...`.
 3. Quando houver novas notas, reconstruir o indice com `python3 brain index`.
 4. Consultar o conhecimento com `python3 brain search ...`.
-5. Se quiser commits automaticos no vault, manter `python3 brain watch` em execucao.
+5. Ao importar um vault real, executar `python3 brain restructure`.
+6. Se quiser commits automaticos no vault, manter `python3 brain watch` em execucao.
 
 ## Formato de skill
 
@@ -84,3 +88,9 @@ O `brain` combina automaticamente o contexto global, a skill selecionada e a ins
 
 O comando `python3 brain watch` monitora o diretorio `vault/` e cria commits locais automaticamente no repositorio Git interno dessa pasta.
 Ele considera criacao, edicao, renomeacao e delecao de arquivos, ignorando apenas o conteudo interno de `vault/.git/`.
+
+## Reestruturacao do vault
+
+O comando `python3 brain restructure` prepara um vault existente para a estrutura padrao do projeto.
+Ele garante as pastas `notes/`, `attachments/`, `templates/`, `inbox/` e `archive/`, move arquivos Markdown soltos para `notes/` e move outros anexos para `attachments/`.
+Pastas ja estruturadas e o conteudo interno de `vault/.git/` sao preservados.
