@@ -20,6 +20,7 @@ python3 brain skills run note_refinement --target vault/notes --instruction "Ref
 python3 brain add "Skill de IA define um comportamento reutilizavel"
 python3 brain index
 python3 brain search "o que e skill de IA?"
+python3 brain watch
 ```
 
 ## Fluxo sugerido
@@ -28,6 +29,7 @@ python3 brain search "o que e skill de IA?"
 2. Executar a skill com `python3 brain skills run ...`.
 3. Quando houver novas notas, reconstruir o indice com `python3 brain index`.
 4. Consultar o conhecimento com `python3 brain search ...`.
+5. Se quiser commits automaticos no vault, manter `python3 brain watch` em execucao.
 
 ## Formato de skill
 
@@ -46,3 +48,8 @@ Regras:
 ```
 
 O `brain` combina automaticamente o contexto global, a skill selecionada e a instrucao passada no terminal antes de chamar o `codex`.
+
+## Auto-commit do vault
+
+O comando `python3 brain watch` monitora o diretorio `vault/` e cria commits locais automaticamente no repositorio Git interno dessa pasta.
+Ele considera criacao, edicao, renomeacao e delecao de arquivos, ignorando apenas o conteudo interno de `vault/.git/`.

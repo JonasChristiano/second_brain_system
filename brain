@@ -104,6 +104,10 @@ def cmd_index(args: argparse.Namespace) -> int:
     return run_command([sys.executable, "rag/indexer.py"])
 
 
+def cmd_watch(args: argparse.Namespace) -> int:
+    return run_command([sys.executable, "whatcher.py"])
+
+
 def cmd_refine(args: argparse.Namespace) -> int:
     ensure_codex_available()
     instruction = args.instruction or "Refinar as notas em vault/notes/"
@@ -197,6 +201,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     index_parser = subparsers.add_parser("index", help="Reconstrui o indice vetorial.")
     index_parser.set_defaults(func=cmd_index)
+
+    watch_parser = subparsers.add_parser(
+        "watch", help="Ativa auto-commit para mudancas no vault."
+    )
+    watch_parser.set_defaults(func=cmd_watch)
 
     refine_parser = subparsers.add_parser(
         "refine", help="Aplica a skill de refinamento nas notas."
