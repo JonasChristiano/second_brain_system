@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import sys
 
+from .llm import ask
 from .paths import NOTES_DIR, ROOT, SKILLS_DIR
 from .skills import build_prompt, ensure_skill_exists, list_skills, load_text, slugify
 
@@ -14,16 +15,11 @@ def run_command(args: list[str]) -> int:
     return result.returncode
 
 
-def ensure_codex_available() -> None:
-    if shutil.which("codex"):
-        return
-    raise SystemExit("O comando 'codex' nao esta disponivel no PATH.")
-
-
 def cmd_add(args: argparse.Namespace) -> int:
-    ensure_codex_available()
     prompt = build_prompt("brain_orchestrator", args.content, str(NOTES_DIR))
-    return run_command(["codex", prompt])
+    response = ask(prompt, args.model)
+    print(response)
+    return 0
 
 
 def cmd_search(args: argparse.Namespace) -> int:
@@ -43,7 +39,6 @@ def cmd_restructure(args: argparse.Namespace) -> int:
 
 
 def cmd_refine(args: argparse.Namespace) -> int:
-    ensure_codex_available()
     target = args.file or str(NOTES_DIR)
 
     if args.instruction:
@@ -54,7 +49,9 @@ def cmd_refine(args: argparse.Namespace) -> int:
         instruction = "Refinar as notas em vault/notes/"
 
     prompt = build_prompt("note_refinement", instruction, target)
-    return run_command(["codex", prompt])
+    response = ask(prompt, args.model)
+    print(response)
+    return 0
 
 
 def cmd_skills_list(args: argparse.Namespace) -> int:
@@ -123,14 +120,15 @@ def cmd_skills_new(args: argparse.Namespace) -> int:
 
 
 def cmd_skills_run(args: argparse.Namespace) -> int:
-    ensure_codex_available()
     prompt = build_prompt(args.name, args.instruction, args.target)
 
     if args.dry_run:
         print(prompt)
         return 0
 
-    return run_command(["codex", prompt])
+    response = ask(prompt, args.model)
+    print(response)
+    return 0
 
 
 def cmd_eval(args: argparse.Namespace) -> int:
@@ -179,8 +177,9 @@ def build_parser() -> argparse.ArgumentParser:
     add_parser.add_argument(
         "content", nargs="+", help="Conteudo da ideia a ser processada."
     )
+    add_parser.add_argument("--model", help="Modelo LLM a usar (codex ou ollama:modelo).")
     add_parser.set_defaults(
-        func=lambda ns: cmd_add(argparse.Namespace(content=" ".join(ns.content)))
+        func=lambda ns: cmd_add(argparse.Namespace(content=" ".join(ns.content), model=getattr(ns, 'model', None)))
     )
 
     search_parser = subparsers.add_parser("search", help="Busca no indice vetorial.")
@@ -216,6 +215,7 @@ def build_parser() -> argparse.ArgumentParser:
     refine_parser.add_argument(
         "--instruction", help="Instrucao opcional para o refinamento."
     )
+    refine_parser.add_argument("--model", help="Modelo LLM a usar (codex ou ollama:modelo).")
     refine_parser.set_defaults(func=cmd_refine)
 
     skills_parser = subparsers.add_parser("skills", help="Gerencia skills locais.")
@@ -238,11 +238,12 @@ def build_parser() -> argparse.ArgumentParser:
     skills_new.set_defaults(func=cmd_skills_new)
 
     skills_run = skills_subparsers.add_parser(
-        "run", help="Executa uma skill com o Codex."
+        "run", help="Executa uma skill com o LLM."
     )
     skills_run.add_argument("name", help="Nome da skill.")
     skills_run.add_argument("--target", help="Caminho ou escopo principal da execucao.")
     skills_run.add_argument("--instruction", help="Instrucao complementar.")
+    skills_run.add_argument("--model", help="Modelo LLM a usar (codex ou ollama:modelo).")
     skills_run.add_argument(
         "--dry-run", action="store_true", help="Mostra o prompt sem executar."
     )

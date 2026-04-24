@@ -124,29 +124,21 @@ class CliTests(unittest.TestCase):
             self.assertEqual(cli.run_command(["python3", "--version"]), 9)
         run_mock.assert_called_once_with(["python3", "--version"], cwd=cli.ROOT)
 
-    def test_ensure_codex_available_success_and_failure(self) -> None:
-        with mock.patch.object(cli.shutil, "which", return_value="/usr/bin/codex"):
-            cli.ensure_codex_available()
-
-        with mock.patch.object(cli.shutil, "which", return_value=None):
-            with self.assertRaises(SystemExit):
-                cli.ensure_codex_available()
-
     def test_cmd_add(self) -> None:
-        args = argparse.Namespace(content="ideia")
+        args = argparse.Namespace(content="ideia", model=None)
         with (
-            mock.patch.object(cli, "ensure_codex_available") as ensure_mock,
             mock.patch.object(
                 cli, "build_prompt", return_value="prompt"
             ) as prompt_mock,
-            mock.patch.object(cli, "run_command", return_value=11) as run_mock,
+            mock.patch.object(cli, "ask", return_value="response") as ask_mock,
+            mock.patch("builtins.print") as print_mock,
         ):
-            self.assertEqual(cli.cmd_add(args), 11)
-        ensure_mock.assert_called_once_with()
+            self.assertEqual(cli.cmd_add(args), 0)
         prompt_mock.assert_called_once_with(
             "brain_orchestrator", "ideia", str(cli.NOTES_DIR)
         )
-        run_mock.assert_called_once_with(["codex", "prompt"])
+        ask_mock.assert_called_once_with("prompt", None)
+        print_mock.assert_called_once_with("response")
 
     def test_cmd_search_index_watch_and_refine(self) -> None:
         with mock.patch.object(cli, "run_command", return_value=3) as run_mock:
@@ -166,67 +158,72 @@ class CliTests(unittest.TestCase):
         )
 
         with (
-            mock.patch.object(cli, "ensure_codex_available"),
             mock.patch.object(
                 cli, "build_prompt", return_value="refine-prompt"
             ) as prompt_mock,
-            mock.patch.object(cli, "run_command", return_value=4) as run_mock_2,
+            mock.patch.object(cli, "ask", return_value="response") as ask_mock,
+            mock.patch("builtins.print") as print_mock,
         ):
             self.assertEqual(
-                cli.cmd_refine(argparse.Namespace(file=None, instruction=None)), 4
+                cli.cmd_refine(argparse.Namespace(file=None, instruction=None, model=None)), 0
             )
         prompt_mock.assert_called_once_with(
             "note_refinement",
             "Refinar as notas em vault/notes/",
             str(cli.NOTES_DIR),
         )
-        run_mock_2.assert_called_once_with(["codex", "refine-prompt"])
+        ask_mock.assert_called_once_with("refine-prompt", None)
+        print_mock.assert_called_once_with("response")
 
         with (
-            mock.patch.object(cli, "ensure_codex_available"),
             mock.patch.object(
                 cli, "build_prompt", return_value="file-refine-prompt"
             ) as prompt_mock_2,
-            mock.patch.object(cli, "run_command", return_value=5) as run_mock_3,
+            mock.patch.object(cli, "ask", return_value="response2") as ask_mock_2,
+            mock.patch("builtins.print") as print_mock_2,
         ):
             self.assertEqual(
                 cli.cmd_refine(
                     argparse.Namespace(
                         file="vault/notes/comando-cat.md",
                         instruction=None,
+                        model=None,
                     )
                 ),
-                5,
+                0,
             )
         prompt_mock_2.assert_called_once_with(
             "note_refinement",
             "Refinar a nota em vault/notes/comando-cat.md",
             "vault/notes/comando-cat.md",
         )
-        run_mock_3.assert_called_once_with(["codex", "file-refine-prompt"])
+        ask_mock_2.assert_called_once_with("file-refine-prompt", None)
+        print_mock_2.assert_called_once_with("response2")
 
         with (
-            mock.patch.object(cli, "ensure_codex_available"),
             mock.patch.object(
                 cli, "build_prompt", return_value="custom-refine-prompt"
             ) as prompt_mock_3,
-            mock.patch.object(cli, "run_command", return_value=6) as run_mock_4,
+            mock.patch.object(cli, "ask", return_value="response3") as ask_mock_3,
+            mock.patch("builtins.print") as print_mock_3,
         ):
             self.assertEqual(
                 cli.cmd_refine(
                     argparse.Namespace(
                         file="vault/notes/comando-cat.md",
                         instruction="Refinar so a introducao",
+                        model=None,
                     )
                 ),
-                6,
+                0,
             )
         prompt_mock_3.assert_called_once_with(
             "note_refinement",
             "Refinar so a introducao",
             "vault/notes/comando-cat.md",
         )
-        run_mock_4.assert_called_once_with(["codex", "custom-refine-prompt"])
+        ask_mock_3.assert_called_once_with("custom-refine-prompt", None)
+        print_mock_3.assert_called_once_with("response3")
 
     def test_cmd_skills_list_show_new_and_run(self) -> None:
         fake_skill = Path("/tmp/demo.md")
@@ -285,9 +282,9 @@ class CliTests(unittest.TestCase):
                     )
 
         with (
-            mock.patch.object(cli, "ensure_codex_available"),
             mock.patch.object(cli, "build_prompt", return_value="run-prompt"),
-            mock.patch.object(cli, "run_command", return_value=8) as run_mock_3,
+            mock.patch.object(cli, "ask", return_value="response") as ask_mock,
+            mock.patch("builtins.print") as print_mock,
         ):
             stdout = io.StringIO()
             with contextlib.redirect_stdout(stdout):
@@ -298,13 +295,16 @@ class CliTests(unittest.TestCase):
                             instruction="instrucao",
                             target="alvo",
                             dry_run=True,
+                            model=None,
                         )
                     ),
                     0,
                 )
             self.assertEqual(stdout.getvalue().strip(), "run-prompt")
-            run_mock_3.assert_not_called()
+            ask_mock.assert_not_called()
+            print_mock.assert_called_once_with("run-prompt")
 
+            print_mock.reset_mock()
             self.assertEqual(
                 cli.cmd_skills_run(
                     argparse.Namespace(
@@ -312,11 +312,13 @@ class CliTests(unittest.TestCase):
                         instruction="instrucao",
                         target="alvo",
                         dry_run=False,
+                        model=None,
                     )
                 ),
-                8,
+                0,
             )
-            run_mock_3.assert_called_once_with(["codex", "run-prompt"])
+            ask_mock.assert_called_once_with("run-prompt", None)
+            print_mock.assert_called_once_with("response")
 
     def test_main_dispatches_add_and_search(self) -> None:
         with mock.patch.object(sys, "argv", ["brain", "add", "uma", "ideia"]):

@@ -86,11 +86,15 @@ def build_prompt(
     skill_name: str, instruction: str | None = None, target: str | None = None
 ) -> str:
     context = load_text(CONTEXT_FILE) if CONTEXT_FILE.exists() else ""
+    # Limitar tamanho do contexto para evitar prompts gigantes
+    if len(context) > 2000:
+        context = context[:2000] + "... (contexto truncado)"
+
     skill_path = ensure_skill_exists(skill_name)
     skill_body = get_skill_body(skill_path)
 
     prompt_parts = [
-        "Use o contexto e a skill abaixo para executar a tarefa.",
+        "Use o contexto e a skill abaixo para executar a tarefa de forma determinística e clara.",
     ]
 
     if context:
