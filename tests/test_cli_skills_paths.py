@@ -4,6 +4,7 @@ import argparse
 import contextlib
 import importlib
 import io
+import json
 import os
 import sys
 import tempfile
@@ -446,3 +447,109 @@ class CliTests(unittest.TestCase):
         self.assertIn("--model", cmd)
         self.assertIn("ollama:mistral", cmd)
         self.assertIn("--verbose", cmd)
+
+    def test_parse_skill_frontmatter_multiline_tabs(self) -> None:
+        content = """---
+name: test_skill
+description: |
+	This is a multiline
+	description with tabs
+---
+body"""
+        name, desc = skills.parse_skill_frontmatter(content)
+        self.assertEqual(name, "test_skill")
+        self.assertEqual(desc, "This is a multiline description with tabs")
+
+    def test_parse_skill_with_various_items(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill_path = Path(temp_dir) / "SKILL.md"
+            skill_path.write_text(
+                "---\nname: test_skill\ndescription: A test skill\n---\n- tool: use hammer\n- constraint: no nails\n- instruction here\n1. First step\n2. Second step\n",
+                encoding="utf-8",
+            )
+            contract = skills.parse_skill(skill_path)
+            self.assertIn("tool: use hammer", contract["tools"])
+            self.assertIn("constraint: no nails", contract["constraints"])
+            self.assertIn("instruction here", contract["instructions"])
+            self.assertIn("1. First step", contract["instructions"])
+            self.assertIn("2. Second step", contract["instructions"])
+
+    def test_build_prompt_generic_task(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            context = root / "context.md"
+            context.write_text("contexto", encoding="utf-8")
+
+            with mock.patch.object(skills, "CONTEXT_FILE", context):
+                prompt = skills.build_prompt(None, "fazer algo", "vault/notes")
+
+            self.assertIn("[CONTEXTO GLOBAL]", prompt)
+            self.assertIn("[GENERIC TASK]", prompt)
+            self.assertIn("[ALVO DA EXECUÇÃO]", prompt)
+            self.assertIn("[INSTRUÇÃO ESPECÍFICA]", prompt)
+
+    def test_cmd_eval_run(self) -> None:
+        eval_set_data = [
+            {
+                "id": "test1",
+                "instruction": "Test instruction",
+                "target": "test target",
+                "expectations": "Good output",
+            }
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            eval_set_path = Path(temp_dir) / "eval_set.json"
+            eval_set_path.write_text(json.dumps(eval_set_data), encoding="utf-8")
+
+            args = argparse.Namespace(eval_set=str(eval_set_path), skill="test_skill", model=None)
+            fake_summary = {"eval_id": "test1", "run_id": 123}
+
+            with (
+                mock.patch.object(cli, "ensure_skill_exists", return_value=Path("/tmp/test_skill")),
+                mock.patch.object(cli, "run_eval_pipeline", return_value=fake_summary) as pipeline_mock,
+                mock.patch.object(cli, "ROOT", Path("/home/jonas/HD/brain_system")),
+                mock.patch("builtins.print") as print_mock,
+            ):
+                self.assertEqual(cli.cmd_eval_run(args), 0)
+            pipeline_mock.assert_called_once()
+            print_mock.assert_called_once_with("Eval completo. Resumo salvo em /home/jonas/HD/brain_system/runs/eval_summary_test_skill.json")
+
+    def test_cmd_improve(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            analysis_path = Path(temp_dir) / "analysis.json"
+            analysis_path.write_text('{"summary": "test"}', encoding="utf-8")
+
+            args = argparse.Namespace(skill="test_skill", analysis=str(analysis_path), model=None, version=None)
+            fake_result = {"skill_path": "/tmp/improved_skill.md", "history_path": "/tmp/history.json"}
+
+            with (
+                mock.patch.object(cli, "ensure_skill_exists"),
+                mock.patch.object(cli, "improve_skill", return_value=fake_result) as improve_mock,
+                mock.patch("builtins.print") as print_mock,
+            ):
+                self.assertEqual(cli.cmd_improve(args), 0)
+            improve_mock.assert_called_once_with("test_skill", analysis_path, model=None, version=None)
+            print_mock.assert_called_once_with("Skill aprimorada salva em /tmp/improved_skill.md")
+
+    def test_cmd_eval_run_invalid_eval_set(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            eval_set_path = Path(temp_dir) / "eval_set.json"
+            eval_set_path.write_text('{"not": "a list"}', encoding="utf-8")
+
+            args = argparse.Namespace(eval_set=str(eval_set_path), skill="test_skill", model=None)
+            with self.assertRaises(SystemExit):
+                cli.cmd_eval_run(args)
+
+    def test_cmd_eval_run_invalid_item(self) -> None:
+        eval_set_data = ["not a dict"]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            eval_set_path = Path(temp_dir) / "eval_set.json"
+            eval_set_path.write_text(json.dumps(eval_set_data), encoding="utf-8")
+
+            args = argparse.Namespace(eval_set=str(eval_set_path), skill="test_skill", model=None)
+            with (
+                mock.patch.object(cli, "ensure_skill_exists", return_value=Path("/tmp/test_skill")),
+                mock.patch.object(cli, "run_eval_pipeline", return_value={}),
+                mock.patch.object(cli, "ROOT", Path("/tmp")),
+            ):
+                self.assertEqual(cli.cmd_eval_run(args), 0)  # Should skip invalid item

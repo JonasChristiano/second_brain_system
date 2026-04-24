@@ -107,16 +107,48 @@ def get_skill_body(skill_path: Path) -> str:
     return content  # Malformed, return all
 
 
+def parse_skill(skill_path: Path) -> dict[str, object]:
+    """Parse SKILL.md into a simple agent contract."""
+    content = load_text(skill_path)
+    name, description = parse_skill_frontmatter(content)
+    body = get_skill_body(skill_path)
+    instructions: list[str] = []
+    tools: list[str] = []
+    constraints: list[str] = []
+
+    for line in body.splitlines():
+        value = line.strip()
+        if value.startswith("- "):
+            normalized = value[2:]
+            if "tool" in normalized.lower():
+                tools.append(normalized)
+            elif "constraint" in normalized.lower():
+                constraints.append(normalized)
+            else:
+                instructions.append(normalized)
+        elif value.startswith("1.") or value.startswith("2."):
+            instructions.append(value)
+
+    return {
+        "name": name,
+        "description": description,
+        "instructions": instructions,
+        "tools": tools,
+        "constraints": constraints,
+        "body": body,
+    }
+
+
 def build_prompt(
-    skill_name: str, instruction: str | None = None, target: str | None = None
+    skill_name: str | None,
+    instruction: str | None = None,
+    target: str | None = None,
 ) -> str:
     """Constrói um prompt estruturado e determinístico para execução de skill."""
     context = load_text(CONTEXT_FILE) if CONTEXT_FILE.exists() else ""
     # Limitar tamanho do contexto para evitar prompts gigantes
     if len(context) > 2000:
         context = context[:2000] + "... (contexto truncado)"
-
-    skill = load_skill(skill_name)
 
     prompt_parts = [
         "Execute a tarefa de forma precisa e determinística usando o contexto e skill fornecidos.",
@@ -131,15 +163,25 @@ def build_prompt(
             ]
         )
 
-    prompt_parts.extend(
-        [
-            "",
-            f"[SKILL: {skill.name}]",
-            f"Descrição: {skill.description}",
-            "",
-            skill.body,
-        ]
-    )
+    if skill_name:
+        skill = load_skill(skill_name)
+        prompt_parts.extend(
+            [
+                "",
+                f"[SKILL: {skill.name}]",
+                f"Descrição: {skill.description}",
+                "",
+                skill.body,
+            ]
+        )
+    else:
+        prompt_parts.extend(
+            [
+                "",
+                "[GENERIC TASK]",
+                "Execute a tarefa usando as instruções fornecidas.",
+            ]
+        )
 
     if target:
         prompt_parts.extend(

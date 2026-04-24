@@ -6,8 +6,8 @@ Sistema local para organizar notas, aplicar skills de IA e consultar uma base de
 
 - `brain`: ponto de entrada da CLI
 - `src/brain_system/`: logica principal do projeto
-- `.codex/context.md`: contexto global do sistema
-- `.codex/skills/*.md`: skills locais em Markdown
+- `context.md`: contexto global do sistema
+- `skills/`: skills locais em Markdown
 - `rag/`: wrappers simples para indexacao e busca
 - `vault/`: notas e anexos em um Git separado
 
@@ -18,6 +18,8 @@ Sistema local para organizar notas, aplicar skills de IA e consultar uma base de
 - `src/brain_system/vault_watch.py`: auto-commit do vault
 - `src/brain_system/rag.py`: indexacao e busca vetorial
 - `src/brain_system/paths.py`: caminhos centrais do projeto
+- `src/brain_system/llm/`: clients provider-agnosticos para LLMs (OpenAI, Claude, Ollama)
+- `src/brain_system/agents/`: pipeline de agentes para execucao, avaliacao e melhoria de skills
 
 ## Uso rapido
 
@@ -33,6 +35,8 @@ python3 brain refine
 python3 brain refine vault/notes/comando-cat.md
 python3 brain restructure
 python3 brain watch
+python3 brain eval-run --eval-set eval_set.json --skill minha_skill
+python3 brain improve --skill minha_skill --analysis runs/eval_minha_skill/analysis.json
 ```
 
 ## Testes
@@ -42,12 +46,14 @@ python3 -m unittest discover -s tests -v
 python3 tests/check_coverage.py
 ```
 
-O segundo comando valida cobertura de 100% nos arquivos de codigo do projeto.
+O segundo comando valida cobertura próxima de 100% nos arquivos de codigo do projeto (algumas linhas de return/raise são consideradas não executáveis pelo tracer).
 
 ## Fluxo sugerido
 
-1. Criar ou ajustar uma skill em `.codex/skills`.
+1. Criar ou ajustar uma skill em `skills/`.
 2. Executar a skill com `python3 brain skills run ...`.
+3. Avaliar a skill com `python3 brain eval-run ...`.
+4. Melhorar a skill com `python3 brain improve ...`.
 3. Quando houver novas notas, reconstruir o indice com `python3 brain index`.
 4. Consultar o conhecimento com `python3 brain search ...`.
 5. Ao importar um vault real, executar `python3 brain restructure`.

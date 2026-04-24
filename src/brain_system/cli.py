@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
-from .llm import ask
+from .llm_adapter import ask
+from .agents.improver import improve_skill
+from .agents.pipeline import run_eval_pipeline
 from .paths import NOTES_DIR, ROOT, SKILLS_DIR
 from .skills import build_prompt, ensure_skill_exists, list_skills, load_text, slugify
 
@@ -164,6 +168,39 @@ def cmd_eval(args: argparse.Namespace) -> int:
     return subprocess.run(cmd, cwd=ROOT).returncode
 
 
+def cmd_eval_run(args: argparse.Namespace) -> int:
+    eval_set_data = json.loads(Path(args.eval_set).read_text(encoding="utf-8"))
+    if not isinstance(eval_set_data, list):
+        raise SystemExit("O eval set deve ser uma lista de itens JSON.")
+
+    skill_dir = SKILLS_DIR / args.skill
+    ensure_skill_exists(args.skill)
+
+    summaries = []
+    for item in eval_set_data:
+        if not isinstance(item, dict):
+            continue
+        summary = run_eval_pipeline(skill_dir, item, model=args.model)
+        summaries.append(summary)
+
+    output_path = ROOT / "runs" / f"eval_summary_{args.skill}.json"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(summaries, indent=2), encoding="utf-8")
+    print(f"Eval completo. Resumo salvo em {output_path}")
+    return 0
+
+
+def cmd_improve(args: argparse.Namespace) -> int:
+    ensure_skill_exists(args.skill)
+    analysis_path = Path(args.analysis)
+    if not analysis_path.exists():
+        raise SystemExit(f"Arquivo de análise não encontrado: {analysis_path}")
+
+    result = improve_skill(args.skill, analysis_path, model=args.model, version=args.version)
+    print(f"Skill aprimorada salva em {result['skill_path']}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="brain",
@@ -282,6 +319,34 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser.add_argument("--model", help="Modelo a usar para claude -p.")
     eval_parser.add_argument("--verbose", action="store_true", help="Saida verbosa.")
     eval_parser.set_defaults(func=cmd_eval)
+
+    eval_run_parser = subparsers.add_parser(
+        "eval-run",
+        help="Executa o pipeline de avaliacao de skill usando agent pipeline interno.",
+    )
+    eval_run_parser.add_argument(
+        "--eval-set", required=True, help="Caminho para o arquivo JSON de eval set."
+    )
+    eval_run_parser.add_argument("--skill", required=True, help="Nome da skill a avaliar.")
+    eval_run_parser.add_argument("--model", help="Modelo a usar para a avaliacao.")
+    eval_run_parser.set_defaults(func=cmd_eval_run)
+
+    improve_parser = subparsers.add_parser(
+        "improve", help="Melhora uma skill a partir de uma analise de execucao."
+    )
+    improve_parser.add_argument("--skill", required=True, help="Nome da skill a aprimorar.")
+    improve_parser.add_argument(
+        "--analysis",
+        required=True,
+        help="Caminho para o arquivo JSON/md de analise da execucao.",
+    )
+    improve_parser.add_argument("--model", help="Modelo LLM a usar.")
+    improve_parser.add_argument(
+        "--version",
+        type=int,
+        help="Versao da skill melhorada (salva em skills/<skill>/v<version>/SKILL.md).",
+    )
+    improve_parser.set_defaults(func=cmd_improve)
 
     return parser
 
