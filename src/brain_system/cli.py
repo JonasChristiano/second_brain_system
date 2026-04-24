@@ -201,6 +201,12 @@ def cmd_improve(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_autonomous(args: argparse.Namespace) -> int:
+    from .agents.autonomous import start_autonomous_mode
+    start_autonomous_mode(model=args.model, max_cycles=args.max_cycles)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="brain",
@@ -347,6 +353,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Versao da skill melhorada (salva em skills/<skill>/v<version>/SKILL.md).",
     )
     improve_parser.set_defaults(func=cmd_improve)
+
+    autonomous_parser = subparsers.add_parser(
+        "autonomous", help="Inicia o modo autônomo de operação."
+    )
+    autonomous_parser.add_argument(
+        "--model", help="Modelo LLM a usar para operações autônomas."
+    )
+    autonomous_parser.add_argument(
+        "--max-cycles", type=int, default=10, help="Número máximo de ciclos autônomos."
+    )
+    autonomous_parser.set_defaults(func=cmd_autonomous)
 
     return parser
 

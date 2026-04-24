@@ -7,10 +7,50 @@ from typing import Any
 
 from ..paths import ROOT, SKILLS_DIR
 from ..agents.comparator import compare
+from ..agents.composer import build_pipeline
 from ..agents.executor import execute_skill
 from ..agents.grader import grade
 from ..agents.analyzer import analyze
 from ..skills import parse_skill
+
+
+def run_multi_agent_pipeline(task: str, model: str | None = None) -> dict[str, Any]:
+    """Run a pipeline of multiple agents for a complex task."""
+    run_id = int(time.time())
+    run_dir = ROOT / "runs" / f"multi_agent_{run_id}"
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    # Build pipeline using composer
+    pipeline_skills = build_pipeline(task)
+
+    results = []
+    current_context = task
+
+    for i, skill_name in enumerate(pipeline_skills):
+        skill_dir = run_dir / f"step_{i}_{skill_name}"
+        result = execute_skill(
+            skill_name,
+            current_context,
+            None,  # No specific target
+            model,
+            skill_dir,
+        )
+        results.append(result)
+
+        # Use output as context for next skill
+        with open(result["output"], "r", encoding="utf-8") as f:
+            current_context = f.read()
+
+    # Final analysis
+    analysis_result = analyze(results, task)
+
+    return {
+        "run_id": run_id,
+        "pipeline": pipeline_skills,
+        "results": results,
+        "analysis": analysis_result,
+        "run_dir": str(run_dir),
+    }
 
 
 def run_eval_pipeline(skill_path: Path, eval_item: dict[str, Any], model: str | None = None) -> dict[str, Any]:

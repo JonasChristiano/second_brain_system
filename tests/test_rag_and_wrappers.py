@@ -103,11 +103,10 @@ class RagTests(unittest.TestCase):
         self.assertEqual(self.state["from_documents"][0], ["doc-a", "doc-b"])
         self.assertIn("Index pronto", stdout.getvalue())
 
-        stdout = io.StringIO()
-        with contextlib.redirect_stdout(stdout):
-            self.rag.search_index("pergunta")
+        results = self.rag.search("pergunta")
         self.assertEqual(self.state["query"], "pergunta")
-        self.assertIn("resultado:pergunta", stdout.getvalue())
+        self.assertIsInstance(results, list)
+        self.assertGreater(len(results), 0)
 
 
 class WrapperTests(unittest.TestCase):

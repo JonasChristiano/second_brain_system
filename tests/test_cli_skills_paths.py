@@ -501,42 +501,66 @@ body"""
             eval_set_path = Path(temp_dir) / "eval_set.json"
             eval_set_path.write_text(json.dumps(eval_set_data), encoding="utf-8")
 
-            args = argparse.Namespace(eval_set=str(eval_set_path), skill="test_skill", model=None)
+            args = argparse.Namespace(
+                eval_set=str(eval_set_path), skill="test_skill", model=None
+            )
             fake_summary = {"eval_id": "test1", "run_id": 123}
 
             with (
-                mock.patch.object(cli, "ensure_skill_exists", return_value=Path("/tmp/test_skill")),
-                mock.patch.object(cli, "run_eval_pipeline", return_value=fake_summary) as pipeline_mock,
+                mock.patch.object(
+                    cli, "ensure_skill_exists", return_value=Path("/tmp/test_skill")
+                ),
+                mock.patch.object(
+                    cli, "run_eval_pipeline", return_value=fake_summary
+                ) as pipeline_mock,
                 mock.patch.object(cli, "ROOT", Path("/home/jonas/HD/brain_system")),
                 mock.patch("builtins.print") as print_mock,
             ):
                 self.assertEqual(cli.cmd_eval_run(args), 0)
             pipeline_mock.assert_called_once()
-            print_mock.assert_called_once_with("Eval completo. Resumo salvo em /home/jonas/HD/brain_system/runs/eval_summary_test_skill.json")
+            print_mock.assert_called_once_with(
+                "Eval completo. Resumo salvo em /home/jonas/HD/brain_system/runs/eval_summary_test_skill.json"
+            )
 
     def test_cmd_improve(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             analysis_path = Path(temp_dir) / "analysis.json"
             analysis_path.write_text('{"summary": "test"}', encoding="utf-8")
 
-            args = argparse.Namespace(skill="test_skill", analysis=str(analysis_path), model=None, version=None)
-            fake_result = {"skill_path": "/tmp/improved_skill.md", "history_path": "/tmp/history.json"}
+            args = argparse.Namespace(
+                skill="test_skill",
+                analysis=str(analysis_path),
+                model=None,
+                version=None,
+            )
+            fake_result = {
+                "skill_path": "/tmp/improved_skill.md",
+                "history_path": "/tmp/history.json",
+            }
 
             with (
                 mock.patch.object(cli, "ensure_skill_exists"),
-                mock.patch.object(cli, "improve_skill", return_value=fake_result) as improve_mock,
+                mock.patch.object(
+                    cli, "improve_skill", return_value=fake_result
+                ) as improve_mock,
                 mock.patch("builtins.print") as print_mock,
             ):
                 self.assertEqual(cli.cmd_improve(args), 0)
-            improve_mock.assert_called_once_with("test_skill", analysis_path, model=None, version=None)
-            print_mock.assert_called_once_with("Skill aprimorada salva em /tmp/improved_skill.md")
+            improve_mock.assert_called_once_with(
+                "test_skill", analysis_path, model=None, version=None
+            )
+            print_mock.assert_called_once_with(
+                "Skill aprimorada salva em /tmp/improved_skill.md"
+            )
 
     def test_cmd_eval_run_invalid_eval_set(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             eval_set_path = Path(temp_dir) / "eval_set.json"
             eval_set_path.write_text('{"not": "a list"}', encoding="utf-8")
 
-            args = argparse.Namespace(eval_set=str(eval_set_path), skill="test_skill", model=None)
+            args = argparse.Namespace(
+                eval_set=str(eval_set_path), skill="test_skill", model=None
+            )
             with self.assertRaises(SystemExit):
                 cli.cmd_eval_run(args)
 
@@ -546,9 +570,13 @@ body"""
             eval_set_path = Path(temp_dir) / "eval_set.json"
             eval_set_path.write_text(json.dumps(eval_set_data), encoding="utf-8")
 
-            args = argparse.Namespace(eval_set=str(eval_set_path), skill="test_skill", model=None)
+            args = argparse.Namespace(
+                eval_set=str(eval_set_path), skill="test_skill", model=None
+            )
             with (
-                mock.patch.object(cli, "ensure_skill_exists", return_value=Path("/tmp/test_skill")),
+                mock.patch.object(
+                    cli, "ensure_skill_exists", return_value=Path("/tmp/test_skill")
+                ),
                 mock.patch.object(cli, "run_eval_pipeline", return_value={}),
                 mock.patch.object(cli, "ROOT", Path("/tmp")),
             ):

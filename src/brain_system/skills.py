@@ -31,6 +31,30 @@ def load_skill(skill_name: str) -> Skill:
     return Skill.from_path(skill_path)
 
 
+def reload_skill(skill_name: str) -> Skill:
+    """Recarrega uma skill, limpando o cache."""
+    load_skill.cache_clear()
+    return load_skill(skill_name)
+
+
+def get_all_skill_names() -> list[str]:
+    """Retorna lista de nomes de todas as skills disponíveis."""
+    return [skill_dir.name for skill_dir in list_skills()]
+
+
+def get_skill_descriptions() -> dict[str, str]:
+    """Retorna dicionário com nome -> descrição de todas as skills."""
+    descriptions = {}
+    for skill_dir in list_skills():
+        try:
+            skill = load_skill(skill_dir.name)
+            descriptions[skill.name] = skill.description
+        except Exception:
+            # Skip malformed skills
+            continue
+    return descriptions
+
+
 def ensure_skill_exists(skill_name: str) -> Path:
     skill_path = SKILLS_DIR / skill_name / "SKILL.md"
     if skill_path.exists():

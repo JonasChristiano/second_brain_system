@@ -5,8 +5,10 @@ import time
 from pathlib import Path
 from typing import Any
 
+from ..infra.observability import observer
 from ..llm_adapter import ask
 from ..paths import ROOT
+from ..rag import search as rag_search
 from ..skills import build_prompt, load_skill, parse_skill
 
 
@@ -22,6 +24,22 @@ def execute_skill(
     outputs_dir = run_dir / "outputs"
     outputs_dir.mkdir(parents=True, exist_ok=True)
 
+    # RAG Integration: Query relevant context
+    rag_context = ""
+    if instruction:
+        try:
+            # Simple query: use first 50 chars of instruction as query
+            query = instruction[:50].strip()
+            if query:
+                results = rag_search(query)
+                if results:
+                    rag_context = "\n".join(
+                        [f"- {r['content'][:200]}..." for r in results[:3]]
+                    )
+        except Exception:
+            # RAG failure shouldn't break execution
+            pass
+
     if skill_name:
         prompt = build_prompt(skill_name, instruction, target)
         skill_contract = parse_skill(ROOT / "skills" / skill_name / "SKILL.md")
@@ -35,9 +53,19 @@ def execute_skill(
             "constraints": [],
         }
 
+    # Inject RAG context into prompt if available
+    if rag_context:
+        prompt = f"[CONTEXTO RAG]\n{rag_context}\n\n{prompt}"
+
     start = time.time()
     response = ask(prompt, model)
     elapsed = time.time() - start
+
+    # Log execution
+    run_id = observer.get_run_id()
+    success = True  # Assume success unless error
+    tokens = None  # TODO: extract from response if available
+    observer.log_execution(run_id, skill_contract.get("name"), elapsed, tokens, success, {"model": model, "rag_context_used": bool(rag_context)})
 
     transcript_path = transcripts_dir / "transcript.md"
     transcript_content = [
@@ -62,7 +90,9 @@ def execute_skill(
         "duration_seconds": elapsed,
         "output_path": str(output_path.name),
     }
-    (run_dir / "metrics.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
+    (run_dir / "metrics.json").write_text(
+        json.dumps(metrics, indent=2), encoding="utf-8"
+    )
 
     return {
         "transcript": str(transcript_path),
