@@ -6,7 +6,9 @@ from pathlib import Path
 
 def resolve_root() -> Path:
     default_root = Path(__file__).resolve().parents[2]
-    return Path(os.environ.get("BRAIN_ROOT") or os.environ.get("PWD") or str(default_root))
+    return Path(
+        os.environ.get("BRAIN_ROOT") or os.environ.get("PWD") or str(default_root)
+    )
 
 
 ROOT = resolve_root()

@@ -418,9 +418,7 @@ class CliTests(unittest.TestCase):
         run_mock.assert_called_once()
         cmd = run_mock.call_args[0][0]
         self.assertIn(sys.executable, cmd)
-        self.assertIn(
-            str(cli.ROOT / "skills" / "scripts" / "run_eval.py"), cmd
-        )
+        self.assertIn(str(cli.ROOT / "skills" / "scripts" / "run_eval.py"), cmd)
         self.assertIn("--eval-set", cmd)
         self.assertIn("test.json", cmd)
         self.assertIn("--skill-path", cmd)
