@@ -10,7 +10,7 @@ def resolve_root() -> Path:
 
 
 ROOT = resolve_root()
-SKILLS_DIR = ROOT / ".codex" / "skills"
+SKILLS_DIR = ROOT / "skills"
 CONTEXT_FILE = ROOT / ".codex" / "context.md"
 VAULT_DIR = ROOT / "vault"
 NOTES_DIR = VAULT_DIR / "notes"

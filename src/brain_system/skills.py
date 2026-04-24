@@ -1,9 +1,34 @@
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from pathlib import Path
 
 from .paths import CONTEXT_FILE, SKILLS_DIR
+
+
+class Skill:
+    """Representa uma skill independente de LLM provider."""
+
+    def __init__(self, name: str, description: str, body: str):
+        self.name = name
+        self.description = description
+        self.body = body
+
+    @classmethod
+    def from_path(cls, skill_path: Path) -> Skill:
+        """Carrega uma skill de um caminho SKILL.md."""
+        content = load_text(skill_path)
+        name, description = parse_skill_frontmatter(content)
+        body = get_skill_body(skill_path)
+        return cls(name, description, body)
+
+
+@lru_cache(maxsize=32)
+def load_skill(skill_name: str) -> Skill:
+    """Carrega e cacheia uma skill por nome."""
+    skill_path = ensure_skill_exists(skill_name)
+    return Skill.from_path(skill_path)
 
 
 def ensure_skill_exists(skill_name: str) -> Path:
@@ -85,23 +110,23 @@ def get_skill_body(skill_path: Path) -> str:
 def build_prompt(
     skill_name: str, instruction: str | None = None, target: str | None = None
 ) -> str:
+    """Constrói um prompt estruturado e determinístico para execução de skill."""
     context = load_text(CONTEXT_FILE) if CONTEXT_FILE.exists() else ""
     # Limitar tamanho do contexto para evitar prompts gigantes
     if len(context) > 2000:
         context = context[:2000] + "... (contexto truncado)"
 
-    skill_path = ensure_skill_exists(skill_name)
-    skill_body = get_skill_body(skill_path)
+    skill = load_skill(skill_name)
 
     prompt_parts = [
-        "Use o contexto e a skill abaixo para executar a tarefa de forma determinística e clara.",
+        "Execute a tarefa de forma precisa e determinística usando o contexto e skill fornecidos.",
     ]
 
     if context:
         prompt_parts.extend(
             [
                 "",
-                "[Contexto global]",
+                "[CONTEXTO GLOBAL]",
                 context,
             ]
         )
@@ -109,8 +134,10 @@ def build_prompt(
     prompt_parts.extend(
         [
             "",
-            f"[Skill: {skill_name}]",
-            skill_body,
+            f"[SKILL: {skill.name}]",
+            f"Descrição: {skill.description}",
+            "",
+            skill.body,
         ]
     )
 
@@ -118,7 +145,7 @@ def build_prompt(
         prompt_parts.extend(
             [
                 "",
-                "[Alvo]",
+                "[ALVO DA EXECUÇÃO]",
                 target,
             ]
         )
@@ -127,7 +154,7 @@ def build_prompt(
         prompt_parts.extend(
             [
                 "",
-                "[Instrucao]",
+                "[INSTRUÇÃO ESPECÍFICA]",
                 instruction,
             ]
         )

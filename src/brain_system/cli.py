@@ -137,7 +137,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
     import subprocess
 
     # Run the eval script directly
-    script_path = ROOT / ".codex" / "skills" / "scripts" / "run_eval.py"
+    script_path = ROOT / "skills" / "scripts" / "run_eval.py"
     cmd = [
         sys.executable,
         str(script_path),

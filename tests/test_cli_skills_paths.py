@@ -86,10 +86,10 @@ class SkillsTests(unittest.TestCase):
             ):
                 prompt = skills.build_prompt("demo", "fazer algo", "vault/notes")
 
-            self.assertIn("[Contexto global]", prompt)
-            self.assertIn("[Skill: demo]", prompt)
-            self.assertIn("[Alvo]", prompt)
-            self.assertIn("[Instrucao]", prompt)
+            self.assertIn("[CONTEXTO GLOBAL]", prompt)
+            self.assertIn("[SKILL: demo]", prompt)
+            self.assertIn("[ALVO DA EXECUÇÃO]", prompt)
+            self.assertIn("[INSTRUÇÃO ESPECÍFICA]", prompt)
 
     def test_build_prompt_without_optional_sections(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -110,9 +110,9 @@ class SkillsTests(unittest.TestCase):
             ):
                 prompt = skills.build_prompt("demo")
 
-            self.assertNotIn("[Contexto global]", prompt)
-            self.assertNotIn("[Alvo]", prompt)
-            self.assertNotIn("[Instrucao]", prompt)
+            self.assertNotIn("[CONTEXTO GLOBAL]", prompt)
+            self.assertNotIn("[ALVO DA EXECUÇÃO]", prompt)
+            self.assertNotIn("[INSTRUÇÃO ESPECÍFICA]", prompt)
 
     def test_build_prompt_with_long_context(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -135,11 +135,11 @@ class SkillsTests(unittest.TestCase):
             ):
                 prompt = skills.build_prompt("demo")
 
-            self.assertIn("[Contexto global]", prompt)
+            self.assertIn("[CONTEXTO GLOBAL]", prompt)
             self.assertIn("... (contexto truncado)", prompt)
             self.assertEqual(
                 len(
-                    prompt.split("[Contexto global]\n")[1].split("\n\n[Skill: demo]")[0]
+                    prompt.split("[CONTEXTO GLOBAL]\n")[1].split("\n\n[SKILL: demo]")[0]
                 ),
                 2000 + len("... (contexto truncado)"),
             )
@@ -419,7 +419,7 @@ class CliTests(unittest.TestCase):
         cmd = run_mock.call_args[0][0]
         self.assertIn(sys.executable, cmd)
         self.assertIn(
-            str(cli.ROOT / ".codex" / "skills" / "scripts" / "run_eval.py"), cmd
+            str(cli.ROOT / "skills" / "scripts" / "run_eval.py"), cmd
         )
         self.assertIn("--eval-set", cmd)
         self.assertIn("test.json", cmd)
