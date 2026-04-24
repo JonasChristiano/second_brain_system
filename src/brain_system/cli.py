@@ -177,9 +177,15 @@ def build_parser() -> argparse.ArgumentParser:
     add_parser.add_argument(
         "content", nargs="+", help="Conteudo da ideia a ser processada."
     )
-    add_parser.add_argument("--model", help="Modelo LLM a usar (codex ou ollama:modelo).")
+    add_parser.add_argument(
+        "--model", help="Modelo LLM a usar (codex ou ollama:modelo)."
+    )
     add_parser.set_defaults(
-        func=lambda ns: cmd_add(argparse.Namespace(content=" ".join(ns.content), model=getattr(ns, 'model', None)))
+        func=lambda ns: cmd_add(
+            argparse.Namespace(
+                content=" ".join(ns.content), model=getattr(ns, "model", None)
+            )
+        )
     )
 
     search_parser = subparsers.add_parser("search", help="Busca no indice vetorial.")
@@ -215,7 +221,9 @@ def build_parser() -> argparse.ArgumentParser:
     refine_parser.add_argument(
         "--instruction", help="Instrucao opcional para o refinamento."
     )
-    refine_parser.add_argument("--model", help="Modelo LLM a usar (codex ou ollama:modelo).")
+    refine_parser.add_argument(
+        "--model", help="Modelo LLM a usar (codex ou ollama:modelo)."
+    )
     refine_parser.set_defaults(func=cmd_refine)
 
     skills_parser = subparsers.add_parser("skills", help="Gerencia skills locais.")
@@ -243,7 +251,9 @@ def build_parser() -> argparse.ArgumentParser:
     skills_run.add_argument("name", help="Nome da skill.")
     skills_run.add_argument("--target", help="Caminho ou escopo principal da execucao.")
     skills_run.add_argument("--instruction", help="Instrucao complementar.")
-    skills_run.add_argument("--model", help="Modelo LLM a usar (codex ou ollama:modelo).")
+    skills_run.add_argument(
+        "--model", help="Modelo LLM a usar (codex ou ollama:modelo)."
+    )
     skills_run.add_argument(
         "--dry-run", action="store_true", help="Mostra o prompt sem executar."
     )

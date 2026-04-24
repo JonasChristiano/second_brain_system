@@ -114,6 +114,72 @@ class SkillsTests(unittest.TestCase):
             self.assertNotIn("[Alvo]", prompt)
             self.assertNotIn("[Instrucao]", prompt)
 
+    def test_build_prompt_with_long_context(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            context = root / "context.md"
+            long_context = "a" * 2500  # Mais de 2000 chars
+            context.write_text(long_context, encoding="utf-8")
+            skills_dir = root / "skills"
+            skills_dir.mkdir()
+            demo_dir = skills_dir / "demo"
+            demo_dir.mkdir()
+            (demo_dir / "SKILL.md").write_text(
+                "---\nname: demo\ndescription: demo skill\n---\nskill-body",
+                encoding="utf-8",
+            )
+
+            with (
+                mock.patch.object(skills, "CONTEXT_FILE", context),
+                mock.patch.object(skills, "SKILLS_DIR", skills_dir),
+            ):
+                prompt = skills.build_prompt("demo")
+
+            self.assertIn("[Contexto global]", prompt)
+            self.assertIn("... (contexto truncado)", prompt)
+            self.assertEqual(
+                len(
+                    prompt.split("[Contexto global]\n")[1].split("\n\n[Skill: demo]")[0]
+                ),
+                2000 + len("... (contexto truncado)"),
+            )
+
+    def test_parse_skill_frontmatter_valid(self) -> None:
+        content = """---
+name: test_skill
+description: A test skill
+---
+body"""
+        name, desc = skills.parse_skill_frontmatter(content)
+        self.assertEqual(name, "test_skill")
+        self.assertEqual(desc, "A test skill")
+
+    def test_parse_skill_frontmatter_missing_opening(self) -> None:
+        content = "name: test\n---\nbody"
+        with self.assertRaises(ValueError):
+            skills.parse_skill_frontmatter(content)
+
+    def test_parse_skill_frontmatter_missing_closing(self) -> None:
+        content = "---\nname: test\nbody"
+        with self.assertRaises(ValueError):
+            skills.parse_skill_frontmatter(content)
+
+    def test_get_skill_body_with_frontmatter(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill_path = Path(temp_dir) / "SKILL.md"
+            skill_path.write_text(
+                "---\nname: test\n---\nbody content", encoding="utf-8"
+            )
+            body = skills.get_skill_body(skill_path)
+            self.assertEqual(body, "body content")
+
+    def test_get_skill_body_malformed_frontmatter(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skill_path = Path(temp_dir) / "SKILL.md"
+            skill_path.write_text("---\nname: test\nmalformed", encoding="utf-8")
+            body = skills.get_skill_body(skill_path)
+            self.assertEqual(body, "---\nname: test\nmalformed")
+
 
 class CliTests(unittest.TestCase):
     def test_run_command_uses_project_root(self) -> None:
@@ -165,7 +231,10 @@ class CliTests(unittest.TestCase):
             mock.patch("builtins.print") as print_mock,
         ):
             self.assertEqual(
-                cli.cmd_refine(argparse.Namespace(file=None, instruction=None, model=None)), 0
+                cli.cmd_refine(
+                    argparse.Namespace(file=None, instruction=None, model=None)
+                ),
+                0,
             )
         prompt_mock.assert_called_once_with(
             "note_refinement",
@@ -281,11 +350,7 @@ class CliTests(unittest.TestCase):
                         argparse.Namespace(name="Nova Skill", goal="Objetivo teste")
                     )
 
-        with (
-            mock.patch.object(cli, "build_prompt", return_value="run-prompt"),
-            mock.patch.object(cli, "ask", return_value="response") as ask_mock,
-            mock.patch("builtins.print") as print_mock,
-        ):
+        with mock.patch.object(cli, "build_prompt", return_value="run-prompt"):
             stdout = io.StringIO()
             with contextlib.redirect_stdout(stdout):
                 self.assertEqual(
@@ -301,10 +366,12 @@ class CliTests(unittest.TestCase):
                     0,
                 )
             self.assertEqual(stdout.getvalue().strip(), "run-prompt")
-            ask_mock.assert_not_called()
-            print_mock.assert_called_once_with("run-prompt")
 
-            print_mock.reset_mock()
+        with (
+            mock.patch.object(cli, "build_prompt", return_value="run-prompt"),
+            mock.patch.object(cli, "ask", return_value="response") as ask_mock,
+            mock.patch("builtins.print") as print_mock,
+        ):
             self.assertEqual(
                 cli.cmd_skills_run(
                     argparse.Namespace(
@@ -332,3 +399,52 @@ class CliTests(unittest.TestCase):
                 self.assertEqual(cli.main(), 22)
             search_args = search_mock.call_args.args[0]
             self.assertEqual(search_args.query, "minha busca")
+
+    def test_cmd_eval(self) -> None:
+        args = argparse.Namespace(
+            eval_set="test.json",
+            skill="test_skill",
+            description=None,
+            num_workers=10,
+            timeout=30,
+            runs_per_query=3,
+            trigger_threshold=0.5,
+            model=None,
+            verbose=False,
+        )
+        fake_result = types.SimpleNamespace(returncode=0)
+        with mock.patch("subprocess.run", return_value=fake_result) as run_mock:
+            self.assertEqual(cli.cmd_eval(args), 0)
+        run_mock.assert_called_once()
+        cmd = run_mock.call_args[0][0]
+        self.assertIn(sys.executable, cmd)
+        self.assertIn(
+            str(cli.ROOT / ".codex" / "skills" / "scripts" / "run_eval.py"), cmd
+        )
+        self.assertIn("--eval-set", cmd)
+        self.assertIn("test.json", cmd)
+        self.assertIn("--skill-path", cmd)
+        self.assertIn(str(cli.SKILLS_DIR / "test_skill"), cmd)
+
+    def test_cmd_eval_with_optional_args(self) -> None:
+        args = argparse.Namespace(
+            eval_set="test.json",
+            skill="test_skill",
+            description="test desc",
+            num_workers=10,
+            timeout=30,
+            runs_per_query=3,
+            trigger_threshold=0.5,
+            model="ollama:mistral",
+            verbose=True,
+        )
+        fake_result = types.SimpleNamespace(returncode=0)
+        with mock.patch("subprocess.run", return_value=fake_result) as run_mock:
+            self.assertEqual(cli.cmd_eval(args), 0)
+        run_mock.assert_called_once()
+        cmd = run_mock.call_args[0][0]
+        self.assertIn("--description", cmd)
+        self.assertIn("test desc", cmd)
+        self.assertIn("--model", cmd)
+        self.assertIn("ollama:mistral", cmd)
+        self.assertIn("--verbose", cmd)

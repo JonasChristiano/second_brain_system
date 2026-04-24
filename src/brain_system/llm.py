@@ -6,6 +6,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def ask(prompt: str, model: str | None = None) -> str:
     """
     Envia um prompt para um LLM e retorna a resposta.
@@ -32,7 +33,7 @@ def ask(prompt: str, model: str | None = None) -> str:
                 capture_output=True,
                 text=True,
                 check=True,
-                timeout=300  # 5 minutos timeout
+                timeout=300,  # 5 minutos timeout
             )
             response = result.stdout.strip()
             logger.info(f"Codex response: {response[:100]}...")
@@ -56,7 +57,7 @@ def ask(prompt: str, model: str | None = None) -> str:
                 capture_output=True,
                 text=True,
                 check=True,
-                timeout=300
+                timeout=300,
             )
             response = result.stdout.strip()
             logger.info(f"Ollama ({ollama_model}) response: {response[:100]}...")
@@ -71,7 +72,10 @@ def ask(prompt: str, model: str | None = None) -> str:
             raise RuntimeError("Comando 'ollama' não encontrado no PATH")
 
     else:
-        raise ValueError(f"Modelo '{model}' não suportado. Use 'codex' ou 'ollama:<modelo>'")
+        raise ValueError(
+            f"Modelo '{model}' não suportado. Use 'codex' ou 'ollama:<modelo>'"
+        )
+
 
 def stream_ask(prompt: str, model: str | None = None):
     """
