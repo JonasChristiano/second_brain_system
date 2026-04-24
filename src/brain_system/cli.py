@@ -141,13 +141,20 @@ def cmd_eval(args: argparse.Namespace) -> int:
     # Run the eval script directly
     script_path = ROOT / ".codex" / "skills" / "scripts" / "run_eval.py"
     cmd = [
-        sys.executable, str(script_path),
-        "--eval-set", args.eval_set,
-        "--skill-path", str(SKILLS_DIR / args.skill),
-        "--num-workers", str(args.num_workers),
-        "--timeout", str(args.timeout),
-        "--runs-per-query", str(args.runs_per_query),
-        "--trigger-threshold", str(args.trigger_threshold),
+        sys.executable,
+        str(script_path),
+        "--eval-set",
+        args.eval_set,
+        "--skill-path",
+        str(SKILLS_DIR / args.skill),
+        "--num-workers",
+        str(args.num_workers),
+        "--timeout",
+        str(args.timeout),
+        "--runs-per-query",
+        str(args.runs_per_query),
+        "--trigger-threshold",
+        str(args.trigger_threshold),
     ]
     if args.description:
         cmd.extend(["--description", args.description])
@@ -155,7 +162,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
         cmd.extend(["--model", args.model])
     if args.verbose:
         cmd.append("--verbose")
-    
+
     return subprocess.run(cmd, cwd=ROOT).returncode
 
 
@@ -244,13 +251,23 @@ def build_parser() -> argparse.ArgumentParser:
     eval_parser = subparsers.add_parser(
         "eval", help="Avalia triggers de skills usando queries de teste."
     )
-    eval_parser.add_argument("--eval-set", required=True, help="Caminho para o arquivo JSON de eval set.")
+    eval_parser.add_argument(
+        "--eval-set", required=True, help="Caminho para o arquivo JSON de eval set."
+    )
     eval_parser.add_argument("--skill", required=True, help="Nome da skill a avaliar.")
     eval_parser.add_argument("--description", help="Descricao alternativa da skill.")
-    eval_parser.add_argument("--num-workers", type=int, default=10, help="Numero de workers paralelos.")
-    eval_parser.add_argument("--timeout", type=int, default=30, help="Timeout por query em segundos.")
-    eval_parser.add_argument("--runs-per-query", type=int, default=3, help="Numero de runs por query.")
-    eval_parser.add_argument("--trigger-threshold", type=float, default=0.5, help="Limite de trigger rate.")
+    eval_parser.add_argument(
+        "--num-workers", type=int, default=10, help="Numero de workers paralelos."
+    )
+    eval_parser.add_argument(
+        "--timeout", type=int, default=30, help="Timeout por query em segundos."
+    )
+    eval_parser.add_argument(
+        "--runs-per-query", type=int, default=3, help="Numero de runs por query."
+    )
+    eval_parser.add_argument(
+        "--trigger-threshold", type=float, default=0.5, help="Limite de trigger rate."
+    )
     eval_parser.add_argument("--model", help="Modelo a usar para claude -p.")
     eval_parser.add_argument("--verbose", action="store_true", help="Saida verbosa.")
     eval_parser.set_defaults(func=cmd_eval)

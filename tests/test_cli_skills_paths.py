@@ -45,7 +45,9 @@ class SkillsTests(unittest.TestCase):
             (demo_dir / "SKILL.md").write_text("demo", encoding="utf-8")
 
             with mock.patch.object(skills, "SKILLS_DIR", skills_dir):
-                self.assertEqual(skills.ensure_skill_exists("demo"), demo_dir / "SKILL.md")
+                self.assertEqual(
+                    skills.ensure_skill_exists("demo"), demo_dir / "SKILL.md"
+                )
                 with self.assertRaises(SystemExit):
                     skills.ensure_skill_exists("missing")
 
@@ -73,7 +75,10 @@ class SkillsTests(unittest.TestCase):
             skills_dir.mkdir()
             demo_dir = skills_dir / "demo"
             demo_dir.mkdir()
-            (demo_dir / "SKILL.md").write_text("---\nname: demo\ndescription: demo skill\n---\nskill-body", encoding="utf-8")
+            (demo_dir / "SKILL.md").write_text(
+                "---\nname: demo\ndescription: demo skill\n---\nskill-body",
+                encoding="utf-8",
+            )
 
             with (
                 mock.patch.object(skills, "CONTEXT_FILE", context),
@@ -94,7 +99,10 @@ class SkillsTests(unittest.TestCase):
             skills_dir.mkdir()
             demo_dir = skills_dir / "demo"
             demo_dir.mkdir()
-            (demo_dir / "SKILL.md").write_text("---\nname: demo\ndescription: demo skill\n---\nskill-body", encoding="utf-8")
+            (demo_dir / "SKILL.md").write_text(
+                "---\nname: demo\ndescription: demo skill\n---\nskill-body",
+                encoding="utf-8",
+            )
 
             with (
                 mock.patch.object(skills, "CONTEXT_FILE", context),
@@ -110,7 +118,9 @@ class SkillsTests(unittest.TestCase):
 class CliTests(unittest.TestCase):
     def test_run_command_uses_project_root(self) -> None:
         fake_result = types.SimpleNamespace(returncode=9)
-        with mock.patch.object(cli.subprocess, "run", return_value=fake_result) as run_mock:
+        with mock.patch.object(
+            cli.subprocess, "run", return_value=fake_result
+        ) as run_mock:
             self.assertEqual(cli.run_command(["python3", "--version"]), 9)
         run_mock.assert_called_once_with(["python3", "--version"], cwd=cli.ROOT)
 
@@ -126,12 +136,16 @@ class CliTests(unittest.TestCase):
         args = argparse.Namespace(content="ideia")
         with (
             mock.patch.object(cli, "ensure_codex_available") as ensure_mock,
-            mock.patch.object(cli, "build_prompt", return_value="prompt") as prompt_mock,
+            mock.patch.object(
+                cli, "build_prompt", return_value="prompt"
+            ) as prompt_mock,
             mock.patch.object(cli, "run_command", return_value=11) as run_mock,
         ):
             self.assertEqual(cli.cmd_add(args), 11)
         ensure_mock.assert_called_once_with()
-        prompt_mock.assert_called_once_with("brain_orchestrator", "ideia", str(cli.NOTES_DIR))
+        prompt_mock.assert_called_once_with(
+            "brain_orchestrator", "ideia", str(cli.NOTES_DIR)
+        )
         run_mock.assert_called_once_with(["codex", "prompt"])
 
     def test_cmd_search_index_watch_and_refine(self) -> None:
@@ -153,10 +167,14 @@ class CliTests(unittest.TestCase):
 
         with (
             mock.patch.object(cli, "ensure_codex_available"),
-            mock.patch.object(cli, "build_prompt", return_value="refine-prompt") as prompt_mock,
+            mock.patch.object(
+                cli, "build_prompt", return_value="refine-prompt"
+            ) as prompt_mock,
             mock.patch.object(cli, "run_command", return_value=4) as run_mock_2,
         ):
-            self.assertEqual(cli.cmd_refine(argparse.Namespace(file=None, instruction=None)), 4)
+            self.assertEqual(
+                cli.cmd_refine(argparse.Namespace(file=None, instruction=None)), 4
+            )
         prompt_mock.assert_called_once_with(
             "note_refinement",
             "Refinar as notas em vault/notes/",
@@ -166,7 +184,9 @@ class CliTests(unittest.TestCase):
 
         with (
             mock.patch.object(cli, "ensure_codex_available"),
-            mock.patch.object(cli, "build_prompt", return_value="file-refine-prompt") as prompt_mock_2,
+            mock.patch.object(
+                cli, "build_prompt", return_value="file-refine-prompt"
+            ) as prompt_mock_2,
             mock.patch.object(cli, "run_command", return_value=5) as run_mock_3,
         ):
             self.assertEqual(
@@ -187,7 +207,9 @@ class CliTests(unittest.TestCase):
 
         with (
             mock.patch.object(cli, "ensure_codex_available"),
-            mock.patch.object(cli, "build_prompt", return_value="custom-refine-prompt") as prompt_mock_3,
+            mock.patch.object(
+                cli, "build_prompt", return_value="custom-refine-prompt"
+            ) as prompt_mock_3,
             mock.patch.object(cli, "run_command", return_value=6) as run_mock_4,
         ):
             self.assertEqual(
@@ -221,12 +243,16 @@ class CliTests(unittest.TestCase):
             self.assertIn("demo", stdout.getvalue())
 
         with (
-            mock.patch.object(cli, "ensure_skill_exists", return_value=fake_skill) as ensure_mock,
+            mock.patch.object(
+                cli, "ensure_skill_exists", return_value=fake_skill
+            ) as ensure_mock,
             mock.patch.object(cli, "load_text", return_value="conteudo") as load_mock,
         ):
             stdout = io.StringIO()
             with contextlib.redirect_stdout(stdout):
-                self.assertEqual(cli.cmd_skills_show(argparse.Namespace(name="demo")), 0)
+                self.assertEqual(
+                    cli.cmd_skills_show(argparse.Namespace(name="demo")), 0
+                )
             self.assertEqual(stdout.getvalue().strip(), "conteudo")
         ensure_mock.assert_called_once_with("demo")
         load_mock.assert_called_once_with(fake_skill)

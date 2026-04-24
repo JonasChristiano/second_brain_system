@@ -78,7 +78,7 @@ def get_skill_body(skill_path: Path) -> str:
 
     for i, line in enumerate(lines[1:], start=1):
         if line.strip() == "---":
-            return "\n".join(lines[i+1:]).strip()
+            return "\n".join(lines[i + 1 :]).strip()
     return content  # Malformed, return all
 
 
