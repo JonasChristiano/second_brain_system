@@ -2,6 +2,24 @@
 
 Sistema local para organizar notas, aplicar skills de IA e consultar uma base de conhecimento em `vault/notes`.
 
+## 📚 Documentação
+
+**Comece aqui**: [docs/README.md](docs/README.md)
+
+Toda a documentação está organizada em uma pasta única:
+- **[INSTALLATION.md](docs/INSTALLATION.md)** - Como instalar e configurar
+- **[BRAIN_CLI_GUIDE.md](docs/BRAIN_CLI_GUIDE.md)** - Referência completa de comandos
+- **[CHEAT_SHEET.md](docs/CHEAT_SHEET.md)** - Tabela rápida de comandos (imprima!)
+- **[NAVIGATION.md](docs/NAVIGATION.md)** - Mapa de navegação para encontrar informação
+
+Ou use o help interativo:
+```bash
+./brain help                # Bem-vindo
+./brain help <comando>      # Ajuda de comando
+./brain help --quick        # Workflows rápidos
+./brain help --examples     # 7 exemplos práticos
+```
+
 ## Estrutura
 
 - `brain`: ponto de entrada da CLI
@@ -20,9 +38,18 @@ Sistema local para organizar notas, aplicar skills de IA e consultar uma base de
 - `src/brain_system/paths.py`: caminhos centrais do projeto
 - `src/brain_system/llm/`: clients provider-agnosticos para LLMs (OpenAI, Claude, Ollama)
 - `src/brain_system/agents/`: pipeline de agentes para execucao, avaliacao e melhoria de skills
+- `docs/`: documentação completa (README, guias, referência)
 
 ## Uso rapido
 
+**Primeiros passos**:
+```bash
+./brain help                # Ver ajuda
+./brain help --quick        # Referência rápida (2 min)
+./brain help --examples     # 7 exemplos práticos
+```
+
+**Comandos principais**:
 ```bash
 python3 brain skills list
 python3 brain skills show brain_orchestrator
@@ -38,6 +65,8 @@ python3 brain watch
 python3 brain eval-run --eval-set eval_set.json --skill minha_skill
 python3 brain improve --skill minha_skill --analysis runs/eval_minha_skill/analysis.json
 ```
+
+**Para documentação completa**, veja [docs/README.md](docs/README.md)
 
 ## Testes
 

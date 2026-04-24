@@ -436,7 +436,7 @@ class HelpSystem:
   • Use 'brain help <comando>' para documentação completa
   • A maioria dos comandos suporta --model para escolher o LLM
   • Use --dry-run em skills run para ver o prompt sem executar
-  • Para mais informações, veja: README.md
+  • Para mais informações, veja: docs/README.md ou docs/CHEAT_SHEET.md
 """)
 
     @staticmethod
