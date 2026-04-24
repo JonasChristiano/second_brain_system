@@ -7,6 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .help import HelpSystem, cmd_help
 from .llm_adapter import ask
 from .agents.improver import improve_skill
 from .agents.pipeline import run_eval_pipeline
@@ -364,6 +365,25 @@ def build_parser() -> argparse.ArgumentParser:
         "--max-cycles", type=int, default=10, help="Número máximo de ciclos autônomos."
     )
     autonomous_parser.set_defaults(func=cmd_autonomous)
+
+    help_parser = subparsers.add_parser(
+        "help", help="Exibe ajuda detalhada sobre comandos e uso do Brain System."
+    )
+    help_parser.add_argument(
+        "command_name",
+        nargs="?",
+        help="Comando específico para ajuda detalhada (opcional).",
+    )
+    help_parser.add_argument(
+        "--list", action="store_true", help="Lista todos os comandos por categoria."
+    )
+    help_parser.add_argument(
+        "--quick", action="store_true", help="Exibe referência rápida de comandos."
+    )
+    help_parser.add_argument(
+        "--examples", action="store_true", help="Exibe guia com exemplos práticos."
+    )
+    help_parser.set_defaults(func=cmd_help)
 
     return parser
 
