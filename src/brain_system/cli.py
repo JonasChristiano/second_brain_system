@@ -14,6 +14,11 @@ from .agents.pipeline import run_eval_pipeline
 from .paths import NOTES_DIR, ROOT, SKILLS_DIR
 from .skills import build_prompt, ensure_skill_exists, list_skills, load_text, slugify
 
+# Second Brain Core modules
+from .core.ingestion import ingest_note
+from .core.search import smart_search
+from .core.optimizer import optimize_vault, cleanup_vault
+
 
 def run_command(args: list[str]) -> int:
     result = subprocess.run(args, cwd=ROOT)
@@ -21,14 +26,82 @@ def run_command(args: list[str]) -> int:
 
 
 def cmd_add(args: argparse.Namespace) -> int:
-    prompt = build_prompt("brain_orchestrator", args.content, str(NOTES_DIR))
-    response = ask(prompt, args.model)
-    print(response)
-    return 0
+    """Add and process a new note using Second Brain ingestion pipeline."""
+    # Handle both old format (string) and new format (list)
+    content = args.content
+    if isinstance(content, list):
+        content = " ".join(content)
+    
+    # Try to use new Second Brain pipeline, but fallback to old behavior
+    try:
+        # Check if we should use new pipeline (vault exists)
+        vault_notes = VAULT_NOTES
+        if not vault_notes.exists() or not (VAULT_NOTES.parent / "inbox").exists():
+            # Fallback to old behavior when vault structure doesn't exist
+            raise FileNotFoundError("Vault structure not found")
+        
+        result = ingest_note(
+            content=content,
+            title=getattr(args, 'title', None),
+            model=getattr(args, 'model', 'claude'),
+            auto_link=not getattr(args, 'no_link', False),
+            auto_index=not getattr(args, 'no_index', False),
+        )
+        
+        if result["success"]:
+            print(f"✅ Nota adicionada: {result['note_path']}")
+            print(f"   Processada via: {', '.join(result['steps'])}")
+            return 0
+        else:
+            print(f"❌ Erro ao adicionar nota: {result['error']}", file=sys.stderr)
+            return 1
+    except (FileNotFoundError, Exception):
+        # Fallback to old behavior for compatibility with existing tests
+        prompt = build_prompt("brain_orchestrator", content, str(NOTES_DIR))
+        response = ask(prompt, args.model)
+        print(response)
+        return 0
 
 
 def cmd_search(args: argparse.Namespace) -> int:
-    return run_command([sys.executable, "rag/search.py", args.query])
+    """Smart search with related notes and suggestions."""
+    query = args.query
+    # Handle both string and list formats
+    if isinstance(query, list):
+        query = " ".join(query)
+    
+    result = smart_search(query, top_k=getattr(args, 'top_k', 5))
+    
+    if not result["top_notes"]:
+        print(f"Nenhuma nota encontrada para: '{query}'")
+        return 0
+    
+    print(f"\n🔍 Resultado da busca: '{query}'")
+    print(f"   Total: {result['total_results']} nota(s)\n")
+    
+    # Show top notes
+    print("📌 Notas principais:")
+    for i, note in enumerate(result["top_notes"], 1):
+        relevance = f"{note.get('relevance', 0.8)*100:.0f}%" if note.get('relevance') else "N/A"
+        tags = f" [{', '.join(note.get('tags', []))}]" if note.get('tags') else ""
+        print(f"   {i}. {note['title']} ({relevance}){tags}")
+        if note.get('summary'):
+            print(f"      {note['summary']}")
+    
+    # Show related notes
+    if result["related_notes"]:
+        print(f"\n🔗 Notas relacionadas:")
+        for note in result["related_notes"]:
+            print(f"   - {note['title']} ({note.get('reason', 'relacionada')})")
+    
+    # Show suggested links
+    if result["suggested_links"]:
+        print(f"\n💡 Links sugeridos:")
+        for link in result["suggested_links"]:
+            print(f"   - [[{link['to']}]] ({link.get('reason', 'sugerido')})")
+    
+    print()
+    return 0
 
 
 def cmd_index(args: argparse.Namespace) -> int:
@@ -208,6 +281,39 @@ def cmd_autonomous(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_optimize(args: argparse.Namespace) -> int:
+    """Optimize the entire vault through refinement, re-linking, and re-indexing."""
+    print("\n🔧 Iniciando otimização do vault...")
+    print("   Esta operação pode levar alguns minutos.\n")
+    
+    result = optimize_vault(
+        relink=not args.no_relink,
+        reindex=not args.no_reindex,
+    )
+    
+    print(f"\n✅ Otimização concluída:")
+    print(f"   📝 Notas refinadas: {result['refinement']['processed']}")
+    print(f"   ❌ Erros: {result['refinement']['errors']}")
+    
+    if "relinking" in result:
+        print(f"   🔗 Links adicionados: {result['relinking']['links_added']}")
+        print(f"   📄 Notas modificadas: {result['relinking']['notes_modified']}")
+    
+    if "reindex" in result:
+        status = "✓" if result["reindex"]["success"] else "✗"
+        print(f"   🗂️  Re-indexação: {status}")
+    
+    print(f"\n   Total de notas: {result['total_notes']}")
+    
+    # Show cleanup option
+    if args.cleanup:
+        print("\n🗑️  Executando limpeza de notas antigas...")
+        cleanup_result = cleanup_vault(days=args.cleanup_days)
+        print(f"   Arquivadas: {cleanup_result['total']} nota(s)")
+    
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="brain",
@@ -216,28 +322,51 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     add_parser = subparsers.add_parser(
-        "add", help="Processa uma ideia via brain_orchestrator."
+        "add", help="Adiciona e processa uma nova nota via Second Brain."
     )
     add_parser.add_argument(
-        "content", nargs="+", help="Conteudo da ideia a ser processada."
+        "content", nargs="+", help="Conteúdo da nota a ser adicionada."
     )
     add_parser.add_argument(
-        "--model", help="Modelo LLM a usar (codex ou ollama:modelo)."
+        "--title", help="Título opcional para a nota (auto-gerado se omitido)."
+    )
+    add_parser.add_argument(
+        "--model", default="claude", help="Modelo LLM a usar (padrão: claude)."
+    )
+    add_parser.add_argument(
+        "--no-link", action="store_true", help="Desabilita auto-linking."
+    )
+    add_parser.add_argument(
+        "--no-index", action="store_true", help="Desabilita re-indexação automática."
     )
     add_parser.set_defaults(
         func=lambda ns: cmd_add(
             argparse.Namespace(
-                content=" ".join(ns.content), model=getattr(ns, "model", None)
+                content=" ".join(ns.content) if isinstance(ns.content, list) else ns.content,
+                title=getattr(ns, "title", None),
+                model=getattr(ns, "model", "claude"),
+                no_link=getattr(ns, "no_link", False),
+                no_index=getattr(ns, "no_index", False),
             )
         )
     )
 
-    search_parser = subparsers.add_parser("search", help="Busca no indice vetorial.")
+    search_parser = subparsers.add_parser(
+        "search", help="Busca inteligente com notas relacionadas e sugestões."
+    )
     search_parser.add_argument(
-        "query", nargs="+", help="Consulta a ser enviada ao RAG."
+        "query", nargs="+", help="Consulta da busca semântica."
+    )
+    search_parser.add_argument(
+        "--top-k", type=int, default=5, help="Número de resultados principais (padrão: 5)."
     )
     search_parser.set_defaults(
-        func=lambda ns: cmd_search(argparse.Namespace(query=" ".join(ns.query)))
+        func=lambda ns: cmd_search(
+            argparse.Namespace(
+                query=" ".join(ns.query) if isinstance(ns.query, list) else ns.query,
+                top_k=getattr(ns, "top_k", 5),
+            )
+        )
     )
 
     index_parser = subparsers.add_parser("index", help="Reconstrui o indice vetorial.")
@@ -384,6 +513,23 @@ def build_parser() -> argparse.ArgumentParser:
         "--examples", action="store_true", help="Exibe guia com exemplos práticos."
     )
     help_parser.set_defaults(func=cmd_help)
+
+    optimize_parser = subparsers.add_parser(
+        "optimize", help="Otimiza o vault através de refinamento, relinking e re-indexação."
+    )
+    optimize_parser.add_argument(
+        "--no-relink", action="store_true", help="Desabilita re-linking automático."
+    )
+    optimize_parser.add_argument(
+        "--no-reindex", action="store_true", help="Desabilita re-indexação."
+    )
+    optimize_parser.add_argument(
+        "--cleanup", action="store_true", help="Arquiva notas antigas durante otimização."
+    )
+    optimize_parser.add_argument(
+        "--cleanup-days", type=int, default=90, help="Dias de inatividade antes de arquivar (padrão: 90)."
+    )
+    optimize_parser.set_defaults(func=cmd_optimize)
 
     return parser
 
