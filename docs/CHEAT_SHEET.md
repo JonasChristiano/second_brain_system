@@ -14,31 +14,31 @@
 
 | Comando | Uso Rápido |
 |---------|-----------|
-| **add** | `brain add "ideia"` - Processar nova ideia |
-| **search** | `brain search "termo"` - Buscar no RAG |
-| **index** | `brain index` - Reconstruir índice |
-| **skills list** | `brain skills list` - Listar skills |
-| **skills run** | `brain skills run nome --target vault/notes/` - Executar skill |
-| **eval** | `brain eval --eval-set tests/eval.json --skill nome` - Avaliar |
-| **improve** | `brain improve --skill nome --analysis analysis.json` - Melhorar |
+| **add** | `brain add "ideia"` - Ingerir e processar nota automaticamente |
+| **search** | `brain search "termo"` - Buscar notas semânticas |
+| **optimize** | `brain optimize` - Otimizar todo o vault de notas |
+| **index** | `brain index` - Reconstruir índice (avançado) |
+| **refine** | `brain refine vault/notes/file.md` - Refinar nota específica (avançado) |
+| **skills list** | `brain skills list` - Listar skills (interno/avançado) |
+| **skills run** | `brain skills run nome --target vault/notes/` - Executar skill (interno) |
 | **autonomous** | `brain autonomous --max-cycles 5` - Modo autônomo |
-| **refine** | `brain refine vault/notes/file.md` - Refinar nota |
 | **watch** | `brain watch` - Auto-commit |
 
 ## 🎯 Workflows Rápidos
 
-### Adicionar e Indexar
+### Adicionar e Otimizar
 ```bash
 brain add "Nova ideia aqui"
-brain index
+brain optimize
+brain search "termo importante"
 ```
 
-### Criar Skill
+### Avançado / Interno
 ```bash
-brain skills new minha_skill --goal "Objetivo"
-brain skills show minha_skill          # Ver template
-# Editar SKILL.md
-brain skills run minha_skill --target vault/notes/ --dry-run
+brain index                # Reconstruir índice do vault
+brain refine <arquivo>      # Refinar nota específica
+brain skills list          # Ver skills internas
+brain skills run <nome>    # Executar skill interna
 ```
 
 ### Avaliar Skill

@@ -193,9 +193,7 @@ def process_note(note_path: Path, model: str = "claude") -> Dict[str, Any]:
     return processor.process_note(note_path)
 
 
-def process_all_notes(
-    directory: Path = None, model: str = "claude"
-) -> Dict[str, Any]:
+def process_all_notes(directory: Path = None, model: str = "claude") -> Dict[str, Any]:
     """
     Process all notes in a directory.
 

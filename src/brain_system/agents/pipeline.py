@@ -53,7 +53,9 @@ def run_multi_agent_pipeline(task: str, model: str | None = None) -> dict[str, A
     }
 
 
-def run_eval_pipeline(skill_path: Path, eval_item: dict[str, Any], model: str | None = None) -> dict[str, Any]:
+def run_eval_pipeline(
+    skill_path: Path, eval_item: dict[str, Any], model: str | None = None
+) -> dict[str, Any]:
     run_id = int(time.time())
     eval_id = eval_item.get("id") or eval_item.get("name") or skill_path.name
     run_dir = ROOT / "runs" / f"eval_{eval_id}" / f"run_{run_id}"
@@ -138,5 +140,7 @@ def run_eval_pipeline(skill_path: Path, eval_item: dict[str, Any], model: str | 
         "comparison": comparison,
         "analysis": analysis,
     }
-    (run_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    (run_dir / "summary.json").write_text(
+        json.dumps(summary, indent=2), encoding="utf-8"
+    )
     return summary

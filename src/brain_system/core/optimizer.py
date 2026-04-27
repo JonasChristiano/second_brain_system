@@ -179,9 +179,9 @@ class NoteOptimizer:
             "total_words": total_words,
             "unique_tags": len(all_tags),
             "total_links": all_links,
-            "avg_words_per_note": round(
-                total_words / len(note_files), 0
-            ) if note_files else 0,
+            "avg_words_per_note": round(total_words / len(note_files), 0)
+            if note_files
+            else 0,
         }
 
 

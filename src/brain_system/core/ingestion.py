@@ -88,9 +88,7 @@ class NoteIngestion:
             process_result = process_note(inbox_note, model=model)
             if process_result["success"]:
                 result["steps"].extend(process_result["steps_completed"])
-                logger.info(
-                    f"✓ Processed note: {process_result['steps_completed']}"
-                )
+                logger.info(f"✓ Processed note: {process_result['steps_completed']}")
 
             # Step 3: Move to notes folder
             final_note = self.notes_path / note_filename

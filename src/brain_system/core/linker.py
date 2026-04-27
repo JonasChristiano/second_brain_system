@@ -119,11 +119,7 @@ class NoteLinkEngine:
                     if "[[" not in section_content.split("\n")[1]:
                         # Insert after the heading
                         insert_pos = section_start + len("## Related Notes\n")
-                        content = (
-                            content[:insert_pos]
-                            + "\n"
-                            + content[insert_pos:]
-                        )
+                        content = content[:insert_pos] + "\n" + content[insert_pos:]
 
                 # Add link lines
                 link_lines = "\n".join(f"- [[{link}]]" for link in new_links)

@@ -50,19 +50,21 @@ pip install -e .
 
 ### Por Categoria
 
-#### 📝 Processamento de Ideias
-- `brain add` - Adicionar e processar nova ideia
-- `brain refine` - Refinar notas existentes
+#### 📝 Notas e Second Brain
+- `brain add` - Adicionar e processar nova nota automaticamente
+- `brain search` - Buscar notas semânticas e contexto
+- `brain optimize` - Otimizar todo o vault de notas
 
 #### 🔍 Busca e Índice
 - `brain search` - Buscar no índice RAG
-- `brain index` - Reconstruir índice vetorial
+- `brain index` - Reconstruir índice vetorial (avançado)
 
-#### 🎯 Gerenciamento de Skills
-- `brain skills list` - Listar skills disponíveis
-- `brain skills new` - Criar nova skill
-- `brain skills show` - Ver conteúdo de skill
-- `brain skills run` - Executar uma skill
+#### ⚙️ Manutenção Interna
+- `brain refine` - Refinar notas existentes (interno/avançado)
+- `brain skills list` - Listar skills internas
+- `brain skills new` - Criar nova skill (interno)
+- `brain skills show` - Ver conteúdo de skill (interno)
+- `brain skills run` - Executar uma skill (interno)
 
 #### 📊 Avaliação
 - `brain eval` - Avaliar skill com conjunto de testes
@@ -83,7 +85,7 @@ pip install -e .
 
 ### brain add
 
-**Propósito**: Processar uma ideia ou conteúdo via skill brain_orchestrator
+**Propósito**: Ingerir uma nota no Second Brain e aplicar o pipeline interno de processamento
 
 **Sintaxe**:
 ```bash
@@ -112,7 +114,31 @@ brain add "Preciso aprender Docker para containerização"
 
 ### brain search
 
-**Propósito**: Busca semântica no índice RAG
+**Propósito**: Buscar por notas relevantes no Second Brain com contexto semântico
+
+**Sintaxe**:
+```bash
+brain search <consulta>
+```
+
+### brain optimize
+
+**Propósito**: Executar a otimização completa do vault de notas, incluindo refinamento, relinking e re-indexação
+
+**Sintaxe**:
+```bash
+brain optimize [--no-relink] [--no-reindex] [--cleanup] [--cleanup-days DIAS]
+```
+
+**Exemplo**:
+```bash
+brain optimize
+brain optimize --cleanup --cleanup-days 90
+```
+
+### brain skills
+
+**Propósito**: Buscar por notas relevantes no Second Brain com contexto semântico
 
 **Sintaxe**:
 ```bash
@@ -135,7 +161,7 @@ brain search "python async"
 
 ### brain skills
 
-**Propósito**: Gerenciar skills locais
+**Propósito**: Gerenciar skills locais internamente (uso avançado; normalmente não necessário para usuários do Second Brain)
 
 #### brain skills list
 

@@ -31,7 +31,7 @@ def cmd_add(args: argparse.Namespace) -> int:
     content = args.content
     if isinstance(content, list):
         content = " ".join(content)
-    
+
     # Try to use new Second Brain pipeline, but fallback to old behavior
     try:
         # Check if we should use new pipeline (vault exists)
@@ -39,15 +39,15 @@ def cmd_add(args: argparse.Namespace) -> int:
         if not vault_notes.exists() or not (VAULT_NOTES.parent / "inbox").exists():
             # Fallback to old behavior when vault structure doesn't exist
             raise FileNotFoundError("Vault structure not found")
-        
+
         result = ingest_note(
             content=content,
-            title=getattr(args, 'title', None),
-            model=getattr(args, 'model', 'claude'),
-            auto_link=not getattr(args, 'no_link', False),
-            auto_index=not getattr(args, 'no_index', False),
+            title=getattr(args, "title", None),
+            model=getattr(args, "model", "claude"),
+            auto_link=not getattr(args, "no_link", False),
+            auto_index=not getattr(args, "no_index", False),
         )
-        
+
         if result["success"]:
             print(f"✅ Nota adicionada: {result['note_path']}")
             print(f"   Processada via: {', '.join(result['steps'])}")
@@ -69,37 +69,41 @@ def cmd_search(args: argparse.Namespace) -> int:
     # Handle both string and list formats
     if isinstance(query, list):
         query = " ".join(query)
-    
-    result = smart_search(query, top_k=getattr(args, 'top_k', 5))
-    
+
+    result = smart_search(query, top_k=getattr(args, "top_k", 5))
+
     if not result["top_notes"]:
         print(f"Nenhuma nota encontrada para: '{query}'")
         return 0
-    
+
     print(f"\n🔍 Resultado da busca: '{query}'")
     print(f"   Total: {result['total_results']} nota(s)\n")
-    
+
     # Show top notes
     print("📌 Notas principais:")
     for i, note in enumerate(result["top_notes"], 1):
-        relevance = f"{note.get('relevance', 0.8)*100:.0f}%" if note.get('relevance') else "N/A"
-        tags = f" [{', '.join(note.get('tags', []))}]" if note.get('tags') else ""
+        relevance = (
+            f"{note.get('relevance', 0.8) * 100:.0f}%"
+            if note.get("relevance")
+            else "N/A"
+        )
+        tags = f" [{', '.join(note.get('tags', []))}]" if note.get("tags") else ""
         print(f"   {i}. {note['title']} ({relevance}){tags}")
-        if note.get('summary'):
+        if note.get("summary"):
             print(f"      {note['summary']}")
-    
+
     # Show related notes
     if result["related_notes"]:
         print(f"\n🔗 Notas relacionadas:")
         for note in result["related_notes"]:
             print(f"   - {note['title']} ({note.get('reason', 'relacionada')})")
-    
+
     # Show suggested links
     if result["suggested_links"]:
         print(f"\n💡 Links sugeridos:")
         for link in result["suggested_links"]:
             print(f"   - [[{link['to']}]] ({link.get('reason', 'sugerido')})")
-    
+
     print()
     return 0
 
@@ -270,13 +274,16 @@ def cmd_improve(args: argparse.Namespace) -> int:
     if not analysis_path.exists():
         raise SystemExit(f"Arquivo de análise não encontrado: {analysis_path}")
 
-    result = improve_skill(args.skill, analysis_path, model=args.model, version=args.version)
+    result = improve_skill(
+        args.skill, analysis_path, model=args.model, version=args.version
+    )
     print(f"Skill aprimorada salva em {result['skill_path']}")
     return 0
 
 
 def cmd_autonomous(args: argparse.Namespace) -> int:
     from .agents.autonomous import start_autonomous_mode
+
     start_autonomous_mode(model=args.model, max_cycles=args.max_cycles)
     return 0
 
@@ -285,32 +292,32 @@ def cmd_optimize(args: argparse.Namespace) -> int:
     """Optimize the entire vault through refinement, re-linking, and re-indexing."""
     print("\n🔧 Iniciando otimização do vault...")
     print("   Esta operação pode levar alguns minutos.\n")
-    
+
     result = optimize_vault(
         relink=not args.no_relink,
         reindex=not args.no_reindex,
     )
-    
+
     print(f"\n✅ Otimização concluída:")
     print(f"   📝 Notas refinadas: {result['refinement']['processed']}")
     print(f"   ❌ Erros: {result['refinement']['errors']}")
-    
+
     if "relinking" in result:
         print(f"   🔗 Links adicionados: {result['relinking']['links_added']}")
         print(f"   📄 Notas modificadas: {result['relinking']['notes_modified']}")
-    
+
     if "reindex" in result:
         status = "✓" if result["reindex"]["success"] else "✗"
         print(f"   🗂️  Re-indexação: {status}")
-    
+
     print(f"\n   Total de notas: {result['total_notes']}")
-    
+
     # Show cleanup option
     if args.cleanup:
         print("\n🗑️  Executando limpeza de notas antigas...")
         cleanup_result = cleanup_vault(days=args.cleanup_days)
         print(f"   Arquivadas: {cleanup_result['total']} nota(s)")
-    
+
     return 0
 
 
@@ -342,7 +349,9 @@ def build_parser() -> argparse.ArgumentParser:
     add_parser.set_defaults(
         func=lambda ns: cmd_add(
             argparse.Namespace(
-                content=" ".join(ns.content) if isinstance(ns.content, list) else ns.content,
+                content=" ".join(ns.content)
+                if isinstance(ns.content, list)
+                else ns.content,
                 title=getattr(ns, "title", None),
                 model=getattr(ns, "model", "claude"),
                 no_link=getattr(ns, "no_link", False),
@@ -354,11 +363,12 @@ def build_parser() -> argparse.ArgumentParser:
     search_parser = subparsers.add_parser(
         "search", help="Busca inteligente com notas relacionadas e sugestões."
     )
+    search_parser.add_argument("query", nargs="+", help="Consulta da busca semântica.")
     search_parser.add_argument(
-        "query", nargs="+", help="Consulta da busca semântica."
-    )
-    search_parser.add_argument(
-        "--top-k", type=int, default=5, help="Número de resultados principais (padrão: 5)."
+        "--top-k",
+        type=int,
+        default=5,
+        help="Número de resultados principais (padrão: 5).",
     )
     search_parser.set_defaults(
         func=lambda ns: cmd_search(
@@ -463,14 +473,18 @@ def build_parser() -> argparse.ArgumentParser:
     eval_run_parser.add_argument(
         "--eval-set", required=True, help="Caminho para o arquivo JSON de eval set."
     )
-    eval_run_parser.add_argument("--skill", required=True, help="Nome da skill a avaliar.")
+    eval_run_parser.add_argument(
+        "--skill", required=True, help="Nome da skill a avaliar."
+    )
     eval_run_parser.add_argument("--model", help="Modelo a usar para a avaliacao.")
     eval_run_parser.set_defaults(func=cmd_eval_run)
 
     improve_parser = subparsers.add_parser(
         "improve", help="Melhora uma skill a partir de uma analise de execucao."
     )
-    improve_parser.add_argument("--skill", required=True, help="Nome da skill a aprimorar.")
+    improve_parser.add_argument(
+        "--skill", required=True, help="Nome da skill a aprimorar."
+    )
     improve_parser.add_argument(
         "--analysis",
         required=True,
@@ -515,7 +529,8 @@ def build_parser() -> argparse.ArgumentParser:
     help_parser.set_defaults(func=cmd_help)
 
     optimize_parser = subparsers.add_parser(
-        "optimize", help="Otimiza o vault através de refinamento, relinking e re-indexação."
+        "optimize",
+        help="Otimiza o vault através de refinamento, relinking e re-indexação.",
     )
     optimize_parser.add_argument(
         "--no-relink", action="store_true", help="Desabilita re-linking automático."
@@ -524,10 +539,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-reindex", action="store_true", help="Desabilita re-indexação."
     )
     optimize_parser.add_argument(
-        "--cleanup", action="store_true", help="Arquiva notas antigas durante otimização."
+        "--cleanup",
+        action="store_true",
+        help="Arquiva notas antigas durante otimização.",
     )
     optimize_parser.add_argument(
-        "--cleanup-days", type=int, default=90, help="Dias de inatividade antes de arquivar (padrão: 90)."
+        "--cleanup-days",
+        type=int,
+        default=90,
+        help="Dias de inatividade antes de arquivar (padrão: 90).",
     )
     optimize_parser.set_defaults(func=cmd_optimize)
 

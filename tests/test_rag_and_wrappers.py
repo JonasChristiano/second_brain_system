@@ -143,7 +143,9 @@ class WrapperTests(unittest.TestCase):
         path_without_src = [path for path in sys.path if path != str(SRC_DIR)]
 
         with (
-            mock.patch.dict(sys.modules, {"brain_system.vault_watch": fake_watch}, clear=False),
+            mock.patch.dict(
+                sys.modules, {"brain_system.vault_watch": fake_watch}, clear=False
+            ),
             mock.patch.object(sys, "path", path_without_src),
         ):
             runpy.run_path(str(ROOT / "whatcher.py"), run_name="__main__")
@@ -164,13 +166,17 @@ class WrapperTests(unittest.TestCase):
 
         with (
             mock.patch.dict(sys.modules, {"brain_system.rag": fake_rag}, clear=False),
-            mock.patch.object(sys, "path", [path for path in sys.path if path != str(SRC_DIR)]),
+            mock.patch.object(
+                sys, "path", [path for path in sys.path if path != str(SRC_DIR)]
+            ),
         ):
             runpy.run_path(str(ROOT / "rag" / "indexer.py"), run_name="__main__")
 
         with (
             mock.patch.dict(sys.modules, {"brain_system.rag": fake_rag}, clear=False),
-            mock.patch.object(sys, "path", [path for path in sys.path if path != str(SRC_DIR)]),
+            mock.patch.object(
+                sys, "path", [path for path in sys.path if path != str(SRC_DIR)]
+            ),
         ):
             with mock.patch.object(sys, "argv", ["search.py", "consulta"]):
                 runpy.run_path(str(ROOT / "rag" / "search.py"), run_name="__main__")

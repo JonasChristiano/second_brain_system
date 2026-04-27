@@ -39,9 +39,7 @@ class SmartSearch:
                 # Extract tags from frontmatter or content
                 tags = re.findall(r"tags:\s*\[([^\]]+)\]", content)
                 tags = (
-                    [t.strip().strip("'\"") for t in tags[0].split(",")]
-                    if tags
-                    else []
+                    [t.strip().strip("'\"") for t in tags[0].split(",")] if tags else []
                 )
 
                 # Extract links
@@ -101,10 +99,7 @@ class SmartSearch:
                 for note_id, note_info in self.notes_index.items():
                     if note_id not in processed_notes:
                         # Match based on content similarity
-                        if (
-                            "content" in rag_result
-                            and len(rag_result["content"]) > 20
-                        ):
+                        if "content" in rag_result and len(rag_result["content"]) > 20:
                             note_content = note_info["path"].read_text(
                                 encoding="utf-8"
                             )[:100]
@@ -127,10 +122,7 @@ class SmartSearch:
             if result["top_notes"]:
                 top_note_id = None
                 for note_id, note_info in self.notes_index.items():
-                    if (
-                        note_info["title"]
-                        == result["top_notes"][0]["title"]
-                    ):
+                    if note_info["title"] == result["top_notes"][0]["title"]:
                         top_note_id = note_id
                         break
 
@@ -171,9 +163,9 @@ class SmartSearch:
                 continue
 
             # Score by tag match
-            tag_match = len(
-                query_tags & set(other_info["tags"])
-            ) / max(len(query_tags), 1)
+            tag_match = len(query_tags & set(other_info["tags"])) / max(
+                len(query_tags), 1
+            )
 
             # Score by link match
             link_match = 1.0 if other_id in query_links else 0.0
@@ -182,17 +174,13 @@ class SmartSearch:
                 related.append(
                     {
                         "title": other_info["title"],
-                        "reason": self._get_relation_reason(
-                            tag_match, link_match
-                        ),
+                        "reason": self._get_relation_reason(tag_match, link_match),
                     }
                 )
 
         return sorted(related, key=lambda x: x.get("score", 0), reverse=True)
 
-    def _suggest_links(
-        self, note_id: str, exclude: set = None
-    ) -> List[Dict[str, str]]:
+    def _suggest_links(self, note_id: str, exclude: set = None) -> List[Dict[str, str]]:
         """Suggest new [[links]] for a note."""
         if exclude is None:
             exclude = set()
@@ -206,16 +194,10 @@ class SmartSearch:
 
         # Suggest notes with high tag overlap
         for other_id, other_info in self.notes_index.items():
-            if (
-                other_id == note_id
-                or other_id in exclude
-                or other_id in existing_links
-            ):
+            if other_id == note_id or other_id in exclude or other_id in existing_links:
                 continue
 
-            tag_match = len(
-                set(note_info["tags"]) & set(other_info["tags"])
-            )
+            tag_match = len(set(note_info["tags"]) & set(other_info["tags"]))
 
             if tag_match >= 1:
                 suggested.append(
@@ -226,9 +208,7 @@ class SmartSearch:
                     }
                 )
 
-        return sorted(suggested, key=lambda x: x.get("strength", 0), reverse=True)[
-            :5
-        ]
+        return sorted(suggested, key=lambda x: x.get("strength", 0), reverse=True)[:5]
 
     @staticmethod
     def _get_relation_reason(tag_match: float, link_match: float) -> str:

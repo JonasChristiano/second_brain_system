@@ -13,7 +13,8 @@ Escolha seu ponto de partida:
 
 ### Para Usuários Regulares
 - **[CHEAT_SHEET.md](CHEAT_SHEET.md)** - Tabela rápida de comandos
-- Use `./brain help <comando>` - Ajuda de comando específico
+- Use `./brain search "termo"` - Busca em notas
+- Use `./brain optimize` - Otimização e limpeza do vault
 - Use `./brain help --quick` - Workflows rápidos
 
 ### Para Referência Completa
@@ -79,8 +80,9 @@ cat docs/CHEAT_SHEET.md
 ### Etapa 3: Praticar (10 min)
 ```bash
 ./brain help --examples
-./brain add "Minha primeira ideia"
+./brain add "Minha primeira nota"
 ./brain search "teste"
+./brain optimize
 ```
 
 ---
@@ -95,7 +97,7 @@ Além da documentação escrita, use o help integrado:
 
 # Ajuda de comando específico
 ./brain help add
-./brain help skills
+./brain help search
 
 # Lista de todos os comandos
 ./brain help --list

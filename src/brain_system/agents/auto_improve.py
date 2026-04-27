@@ -46,7 +46,9 @@ def analyze_performance() -> dict[str, Any]:
                 recommendations.append(f"Optimize '{skill}' for better performance")
 
             if failure_rate > 0.1:  # High failure rate
-                insights.append(f"Skill '{skill}' has high failure rate ({failure_rate:.1%})")
+                insights.append(
+                    f"Skill '{skill}' has high failure rate ({failure_rate:.1%})"
+                )
                 recommendations.append(f"Debug and fix '{skill}'")
 
     return {"insights": insights, "recommendations": recommendations}
