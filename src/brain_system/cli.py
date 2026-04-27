@@ -70,11 +70,14 @@ def cmd_search(args: argparse.Namespace) -> int:
     if isinstance(query, list):
         query = " ".join(query)
 
-    result = smart_search(query, top_k=getattr(args, "top_k", 5))
+    try:
+        result = smart_search(query, top_k=getattr(args, "top_k", 5))
+    except Exception:
+        result = {"top_notes": [], "related_notes": [], "suggested_links": [], "total_results": 0}
 
     if not result["top_notes"]:
-        print(f"Nenhuma nota encontrada para: '{query}'")
-        return 0
+        # Fallback para o comportamento legado quando não há resultados do novo search
+        return run_command([sys.executable, "rag/search.py", query])
 
     print(f"\n🔍 Resultado da busca: '{query}'")
     print(f"   Total: {result['total_results']} nota(s)\n")
