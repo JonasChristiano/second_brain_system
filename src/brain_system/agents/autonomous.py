@@ -66,8 +66,9 @@ A tarefa deve ser concreta e executável por uma pipeline de agentes.
                 "cycle": self.cycle_count,
                 "task": task,
                 "pipeline_length": len(result.get("pipeline", [])),
-                "improvements_applied": improvement_result.get("status") == "improvements_applied",
-            }
+                "improvements_applied": improvement_result.get("status")
+                == "improvements_applied",
+            },
         )
 
         return {
@@ -95,7 +96,7 @@ A tarefa deve ser concreta e executável por uma pipeline de agentes.
                     0,
                     None,
                     False,
-                    {"error": str(e)}
+                    {"error": str(e)},
                 )
                 time.sleep(delay_seconds)  # Still wait before retry
 

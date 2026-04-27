@@ -4,6 +4,7 @@ try:
     import chromadb
     from llama_index.core import SimpleDirectoryReader, VectorStoreIndex
     from llama_index.vector_stores.chroma import ChromaVectorStore
+
     CHROMADB_AVAILABLE = True
 except ImportError:
     CHROMADB_AVAILABLE = False

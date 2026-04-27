@@ -65,7 +65,14 @@ def execute_skill(
     run_id = observer.get_run_id()
     success = True  # Assume success unless error
     tokens = None  # TODO: extract from response if available
-    observer.log_execution(run_id, skill_contract.get("name"), elapsed, tokens, success, {"model": model, "rag_context_used": bool(rag_context)})
+    observer.log_execution(
+        run_id,
+        skill_contract.get("name"),
+        elapsed,
+        tokens,
+        success,
+        {"model": model, "rag_context_used": bool(rag_context)},
+    )
 
     transcript_path = transcripts_dir / "transcript.md"
     transcript_content = [
