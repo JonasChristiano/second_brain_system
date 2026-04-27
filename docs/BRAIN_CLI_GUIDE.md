@@ -570,6 +570,6 @@ brain skills run skill_nova --target vault/notes/ --dry-run > prompt.txt
 Para mais informações, acesse:
 - GitHub: [brain-system](https://github.com/seu-user/brain-system)
 - Documentação: [README.md](./README.md)
-- Versão: v0.3.0 ou superior
+- Versão: v0.4.0 ou superior
 
 **Última atualização**: Abril 2026

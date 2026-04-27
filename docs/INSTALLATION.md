@@ -339,5 +339,5 @@ Para problemas ou dúvidas:
 ---
 
 **Data**: Abril 2026
-**Versão**: v0.3.0+
+**Versão**: v0.4.0+
 **Maintainer**: Jonas

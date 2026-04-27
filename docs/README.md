@@ -217,6 +217,6 @@ docs/
 
 ---
 
-**Versão**: v0.3.0+  
+**Versão**: v0.4.0+  
 **Data**: Abril 2026  
 **Status**: ✅ Completo
