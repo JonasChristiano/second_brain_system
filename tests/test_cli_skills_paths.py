@@ -210,7 +210,8 @@ class CliTests(unittest.TestCase):
             "brain_orchestrator", "ideia", str(cli.NOTES_DIR)
         )
         ask_mock.assert_called_once_with("prompt", None)
-        print_mock.assert_called_once_with("response")
+        # Check that the response was printed (among other feedback messages)
+        print_mock.assert_any_call("response")
 
     def test_cmd_search_index_watch_and_refine(self) -> None:
         with mock.patch.object(cli, "run_command", return_value=3) as run_mock:

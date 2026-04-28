@@ -83,37 +83,49 @@ class NoteIngestion:
             inbox_note.write_text(content, encoding="utf-8")
             result["steps"].append("saved_to_inbox")
             logger.info(f"✓ Saved note to inbox: {inbox_note}")
+            print(f"   ✓ Salvo na inbox: {inbox_note.name}")
 
             # Step 2: Process through pipeline
+            print("   🔄 Processando nota através do pipeline...")
             process_result = process_note(inbox_note, model=model)
             if process_result["success"]:
                 result["steps"].extend(process_result["steps_completed"])
                 logger.info(f"✓ Processed note: {process_result['steps_completed']}")
+                print(f"   ✓ Processamento concluído: {len(process_result['steps_completed'])} etapas")
 
             # Step 3: Move to notes folder
+            print("   📁 Movendo para vault/notes...")
             final_note = self.notes_path / note_filename
             inbox_note.rename(final_note)
             result["note_path"] = str(final_note)
             result["steps"].append("moved_to_notes")
             logger.info(f"✓ Moved note to vault: {final_note}")
+            print(f"   ✓ Movido para: {final_note.name}")
 
             # Step 4: Auto-link if enabled
             if auto_link:
+                print("   🔗 Executando auto-linking...")
                 link_result = auto_link_note(final_note)
                 if link_result["links_added"] > 0:
                     result["steps"].append(f"auto_linked_{link_result['links_added']}")
                     logger.info(
                         f"✓ Auto-linked {link_result['links_added']} references"
                     )
+                    print(f"   ✓ {link_result['links_added']} links adicionados")
+                else:
+                    print("   ✓ Nenhum link novo encontrado")
 
             # Step 5: Auto-index if enabled
             if auto_index:
+                print("   🗂️  Re-indexando vault...")
                 try:
                     rag_build_index()
                     result["steps"].append("indexed")
                     logger.info("✓ Re-indexed vault")
+                    print("   ✓ Indexação concluída")
                 except Exception as e:
                     logger.warning(f"Indexing failed: {e}")
+                    print(f"   ⚠️  Indexação falhou: {e}")
                     # Don't fail the whole ingest on index failure
 
             logger.info(f"✅ Successfully ingested note: {final_note.name}")

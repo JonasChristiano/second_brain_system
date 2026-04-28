@@ -32,6 +32,10 @@ def cmd_add(args: argparse.Namespace) -> int:
     if isinstance(content, list):
         content = " ".join(content)
 
+    print("🧠 Iniciando processamento da nota...")
+    print(f"   Conteúdo: {content[:50]}{'...' if len(content) > 50 else ''}")
+    print(f"   Modelo: {getattr(args, 'model', 'claude')}")
+
     # Try to use new Second Brain pipeline, but fallback to old behavior
     try:
         # Check if we should use new pipeline (vault exists)
@@ -40,6 +44,7 @@ def cmd_add(args: argparse.Namespace) -> int:
             # Fallback to old behavior when vault structure doesn't exist
             raise FileNotFoundError("Vault structure not found")
 
+        print("\n📝 Salvando nota na inbox...")
         result = ingest_note(
             content=content,
             title=getattr(args, "title", None),
@@ -49,16 +54,21 @@ def cmd_add(args: argparse.Namespace) -> int:
         )
 
         if result["success"]:
-            print(f"✅ Nota adicionada: {result['note_path']}")
-            print(f"   Processada via: {', '.join(result['steps'])}")
+            print(f"\n✅ Nota adicionada com sucesso!")
+            print(f"   📄 Arquivo: {result['note_path']}")
+            print(f"   🔄 Processos: {', '.join(result['steps'])}")
             return 0
         else:
-            print(f"❌ Erro ao adicionar nota: {result['error']}", file=sys.stderr)
+            print(f"\n❌ Erro ao adicionar nota: {result['error']}", file=sys.stderr)
             return 1
-    except (FileNotFoundError, Exception):
+    except (FileNotFoundError, Exception) as e:
         # Fallback to old behavior for compatibility with existing tests
+        print("\n🔄 Usando pipeline legado (vault não encontrado)...")
+        print("   Construindo prompt...")
         prompt = build_prompt("brain_orchestrator", content, str(NOTES_DIR))
+        print("   Consultando LLM...")
         response = ask(prompt, args.model)
+        print("\n✅ Resposta do LLM:")
         print(response)
         return 0
 
