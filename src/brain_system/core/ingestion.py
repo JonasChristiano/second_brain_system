@@ -112,16 +112,25 @@ class NoteIngestion:
             # Step 2: Process through pipeline
             print("   🔄 Processando nota através do pipeline...")
             process_result = process_note(inbox_note, model=model)
-            if process_result["success"]:
-                result["steps"].extend(process_result["steps_completed"])
-                logger.info(f"✓ Processed note: {process_result['steps_completed']}")
-                print(
-                    f"   ✓ Processamento concluído: {len(process_result['steps_completed'])} etapas"
-                )
+            if not process_result["success"]:
+                result["success"] = False
+                result["error"] = f"Processamento falhou: {process_result.get('error') or 'erro desconhecido'}"
+                result["note_path"] = str(inbox_note)
+                logger.error(f"✗ Note processing failed: {result['error']}")
+                print(f"   ❌ {result['error']}")
+                return result
+
+            result["steps"].extend(process_result["steps_completed"])
+            logger.info(f"✓ Processed note: {process_result['steps_completed']}")
+            print(
+                f"   ✓ Processamento concluído: {len(process_result['steps_completed'])} etapas"
+            )
 
             # Step 3: Move to notes folder with a descriptive filename
             final_title = title or self._infer_title_from_content(content)
-            final_note = self._build_final_note_path(final_title, note_filename.replace(".md", ""))
+            final_note = self._build_final_note_path(
+                final_title, note_filename.replace(".md", "")
+            )
             print("   📁 Movendo para vault/notes...")
             inbox_note.rename(final_note)
             result["note_path"] = str(final_note)

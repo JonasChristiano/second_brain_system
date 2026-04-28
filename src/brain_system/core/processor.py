@@ -80,10 +80,12 @@ class NoteProcessor:
                     result["steps_completed"].append(step)
                 except Exception as e:
                     logger.warning(f"Step {step} failed: {e}")
-                    # Continue even if a step fails - graceful degradation
+                    result["success"] = False
+                    result["error"] = str(e)
+                    # Stop processing after the first failure
                     break
 
-            # Write processed note back
+            # Write processed note back (even partial output is useful)
             note_path.write_text(current_content, encoding="utf-8")
             result["output"] = current_content
 

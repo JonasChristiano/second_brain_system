@@ -231,6 +231,34 @@ class IngestionTests(unittest.TestCase):
             self.assertFalse(any(inbox_dir.glob("*.md")))
             self.assertTrue(any(notes_dir.glob("*.md")))
 
+    def test_ingest_note_keeps_raw_note_in_inbox_when_processing_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            inbox_dir = Path(temp_dir) / "vault" / "inbox"
+            notes_dir = Path(temp_dir) / "vault" / "notes"
+            ingestion = NoteIngestion(inbox_path=inbox_dir, notes_path=notes_dir)
+
+            with mock.patch(
+                "brain_system.core.ingestion.process_note",
+                return_value={
+                    "success": False,
+                    "error": "LLM failed",
+                    "steps_completed": [],
+                },
+            ):
+                result = ingestion.ingest_note(
+                    content="Falha no LLM deve deixar o arquivo na inbox.",
+                    title="Falha de LLM",
+                    model="ollama:qwen3.5",
+                    auto_link=False,
+                    auto_index=False,
+                )
+
+            self.assertFalse(result["success"])
+            self.assertIn("Processamento falhou", result["error"])
+            self.assertTrue(any(inbox_dir.glob("*.md")))
+            self.assertFalse(any(notes_dir.glob("*.md")))
+
+
 class CliTests(unittest.TestCase):
     def test_run_command_uses_project_root(self) -> None:
         fake_result = types.SimpleNamespace(returncode=9)
