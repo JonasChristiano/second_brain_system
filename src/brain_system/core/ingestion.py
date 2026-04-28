@@ -1,13 +1,14 @@
 """Note ingestion system - handles the complete flow of adding notes to Second Brain.
 
 Ingestion pipeline:
-1. Save raw note to vault/inbox/
+1. Save raw note to vault/inbox/ with a generic temporary filename
 2. Process through core pipeline (split_ideas, metadata_enrichment, note_refinement, linking)
-3. Move to vault/notes/
+3. Move to vault/notes/ using a title-based descriptive filename
 4. Trigger RAG indexing
 """
 
 import logging
+import re
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any
@@ -29,6 +30,34 @@ class NoteIngestion:
         self.notes_path = notes_path or VAULT_NOTES
         self.inbox_path.mkdir(parents=True, exist_ok=True)
         self.notes_path.mkdir(parents=True, exist_ok=True)
+
+    def _sanitize_title(self, title: str) -> str:
+        raw_title = title.strip().splitlines()[0]
+        raw_title = raw_title.lower()
+        raw_title = re.sub(r"[^\w\s-]", "", raw_title)
+        raw_title = re.sub(r"[\s-]+", "_", raw_title)
+        return raw_title.strip("_")[:64] if raw_title else ""
+
+    def _infer_title_from_content(self, content: str) -> str:
+        text = content.strip()
+        if not text:
+            return "nota"
+
+        first_line = text.splitlines()[0].strip()
+        if first_line:
+            return first_line
+
+        words = text.split()
+        return "_".join(words[:6]) if words else "nota"
+
+    def _build_final_note_path(self, title: str, fallback_name: str) -> Path:
+        safe_name = self._sanitize_title(title) or fallback_name
+        final_note = self.notes_path / f"{safe_name}.md"
+        counter = 1
+        while final_note.exists():
+            final_note = self.notes_path / f"{safe_name}_{counter}.md"
+            counter += 1
+        return final_note
 
     def ingest_note(
         self,
@@ -64,22 +93,17 @@ class NoteIngestion:
         }
 
         try:
-            # Step 1: Create note in inbox with title + timestamp
-            if not title:
-                title = f"note_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-
-            note_filename = f"{title}.md"
+            # Step 1: Save raw note in inbox with a generic temporary filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            note_filename = f"note_{timestamp}.md"
             inbox_note = self.inbox_path / note_filename
 
-            # Ensure unique filename
             counter = 1
             while inbox_note.exists():
-                safe_title = title.rsplit("_", 1)[0] if "_" in title else title
-                note_filename = f"{safe_title}_{counter}.md"
+                note_filename = f"note_{timestamp}_{counter}.md"
                 inbox_note = self.inbox_path / note_filename
                 counter += 1
 
-            # Save raw note to inbox
             inbox_note.write_text(content, encoding="utf-8")
             result["steps"].append("saved_to_inbox")
             logger.info(f"✓ Saved note to inbox: {inbox_note}")
@@ -91,11 +115,14 @@ class NoteIngestion:
             if process_result["success"]:
                 result["steps"].extend(process_result["steps_completed"])
                 logger.info(f"✓ Processed note: {process_result['steps_completed']}")
-                print(f"   ✓ Processamento concluído: {len(process_result['steps_completed'])} etapas")
+                print(
+                    f"   ✓ Processamento concluído: {len(process_result['steps_completed'])} etapas"
+                )
 
-            # Step 3: Move to notes folder
+            # Step 3: Move to notes folder with a descriptive filename
+            final_title = title or self._infer_title_from_content(content)
+            final_note = self._build_final_note_path(final_title, note_filename.replace(".md", ""))
             print("   📁 Movendo para vault/notes...")
-            final_note = self.notes_path / note_filename
             inbox_note.rename(final_note)
             result["note_path"] = str(final_note)
             result["steps"].append("moved_to_notes")

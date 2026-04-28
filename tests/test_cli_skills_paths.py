@@ -21,6 +21,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from brain_system import cli, paths, skills
+from brain_system.core.ingestion import NoteIngestion
 
 
 class PathsTests(unittest.TestCase):
@@ -181,6 +182,54 @@ body"""
             body = skills.get_skill_body(skill_path)
             self.assertEqual(body, "---\nname: test\nmalformed")
 
+
+class IngestionTests(unittest.TestCase):
+    def test_ingest_note_moves_to_notes_using_title_based_filename(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            inbox_dir = Path(temp_dir) / "vault" / "inbox"
+            notes_dir = Path(temp_dir) / "vault" / "notes"
+            ingestion = NoteIngestion(inbox_path=inbox_dir, notes_path=notes_dir)
+
+            with mock.patch(
+                "brain_system.core.ingestion.process_note",
+                return_value={"success": True, "steps_completed": []},
+            ):
+                result = ingestion.ingest_note(
+                    content="Minha nota importante sobre GO.",
+                    title="GO performance e goroutines",
+                    model="claude",
+                    auto_link=False,
+                    auto_index=False,
+                )
+
+            self.assertTrue(result["success"])
+            final_path = Path(result["note_path"])
+            self.assertTrue(final_path.exists())
+            self.assertEqual(final_path.parent, notes_dir)
+            self.assertEqual(final_path.stem, "go_performance_e_goroutines")
+            self.assertFalse(any(inbox_dir.glob("*.md")))
+
+    def test_ingest_note_keeps_generic_inbox_name_before_move(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            inbox_dir = Path(temp_dir) / "vault" / "inbox"
+            notes_dir = Path(temp_dir) / "vault" / "notes"
+            ingestion = NoteIngestion(inbox_path=inbox_dir, notes_path=notes_dir)
+
+            with mock.patch(
+                "brain_system.core.ingestion.process_note",
+                return_value={"success": True, "steps_completed": []},
+            ):
+                result = ingestion.ingest_note(
+                    content="Primeira linha da nota será o título gerado.",
+                    model="claude",
+                    auto_link=False,
+                    auto_index=False,
+                )
+
+            self.assertTrue(result["success"])
+            self.assertTrue(notes_dir.exists())
+            self.assertFalse(any(inbox_dir.glob("*.md")))
+            self.assertTrue(any(notes_dir.glob("*.md")))
 
 class CliTests(unittest.TestCase):
     def test_run_command_uses_project_root(self) -> None:
