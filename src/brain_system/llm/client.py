@@ -85,13 +85,16 @@ class LocalClient(LLMClient):
             raise ValueError("Local model must be specified as ollama:<model> or local:<model>")
 
         try:
+            # Local models can take longer, use generous timeout
+            # Default 300s for quick models, but allow up to 30min via env var
+            timeout = int(os.environ.get("BRAIN_LLM_TIMEOUT", "600"))
             result = subprocess.run(
                 ["ollama", "run", model_name],
                 input=prompt,
                 capture_output=True,
                 text=True,
                 check=True,
-                timeout=300,
+                timeout=timeout,
             )
             return result.stdout.strip()
         except subprocess.CalledProcessError as exc:

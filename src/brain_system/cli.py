@@ -11,7 +11,7 @@ from .help import HelpSystem, cmd_help
 from .llm_adapter import ask
 from .agents.improver import improve_skill
 from .agents.pipeline import run_eval_pipeline
-from .paths import NOTES_DIR, ROOT, SKILLS_DIR
+from .paths import NOTES_DIR, ROOT, SKILLS_DIR, VAULT_NOTES
 from .skills import build_prompt, ensure_skill_exists, list_skills, load_text, slugify
 
 # Second Brain Core modules
@@ -73,7 +73,12 @@ def cmd_search(args: argparse.Namespace) -> int:
     try:
         result = smart_search(query, top_k=getattr(args, "top_k", 5))
     except Exception:
-        result = {"top_notes": [], "related_notes": [], "suggested_links": [], "total_results": 0}
+        result = {
+            "top_notes": [],
+            "related_notes": [],
+            "suggested_links": [],
+            "total_results": 0,
+        }
 
     if not result["top_notes"]:
         # Fallback para o comportamento legado quando não há resultados do novo search
@@ -341,7 +346,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--title", help="Título opcional para a nota (auto-gerado se omitido)."
     )
     add_parser.add_argument(
-        "--model", default="claude", help="Modelo LLM a usar (padrão: claude)."
+        "--model",
+        default="claude",
+        help="Modelo LLM a usar (padrão: claude).",
+    )
+    add_parser.add_argument(
+        "--modal",
+        dest="model",
+        help="Alias para --model. Modelos como ollama:qwen3.5 são aceitos.",
     )
     add_parser.add_argument(
         "--no-link", action="store_true", help="Desabilita auto-linking."

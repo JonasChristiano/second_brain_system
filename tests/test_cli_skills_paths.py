@@ -195,11 +195,16 @@ class CliTests(unittest.TestCase):
         args = argparse.Namespace(content="ideia", model=None)
         with (
             mock.patch.object(
+                cli, "VAULT_NOTES", new_callable=mock.MagicMock
+            ) as vault_notes_mock,
+            mock.patch.object(
                 cli, "build_prompt", return_value="prompt"
             ) as prompt_mock,
             mock.patch.object(cli, "ask", return_value="response") as ask_mock,
             mock.patch("builtins.print") as print_mock,
         ):
+            # Make VAULT_NOTES.exists() return False to trigger fallback
+            vault_notes_mock.exists.return_value = False
             self.assertEqual(cli.cmd_add(args), 0)
         prompt_mock.assert_called_once_with(
             "brain_orchestrator", "ideia", str(cli.NOTES_DIR)
@@ -394,6 +399,15 @@ class CliTests(unittest.TestCase):
                 self.assertEqual(cli.main(), 21)
             add_args = add_mock.call_args.args[0]
             self.assertEqual(add_args.content, "uma ideia")
+
+        with mock.patch.object(
+            sys, "argv", ["brain", "add", "uma", "ideia", "--modal", "ollama:qwen3.5"]
+        ):
+            with mock.patch.object(cli, "cmd_add", return_value=21) as add_mock:
+                self.assertEqual(cli.main(), 21)
+            add_args = add_mock.call_args.args[0]
+            self.assertEqual(add_args.content, "uma ideia")
+            self.assertEqual(add_args.model, "ollama:qwen3.5")
 
         with mock.patch.object(sys, "argv", ["brain", "search", "minha", "busca"]):
             with mock.patch.object(cli, "cmd_search", return_value=22) as search_mock:
