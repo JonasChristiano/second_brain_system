@@ -493,6 +493,17 @@ class CliTests(unittest.TestCase):
             search_args = search_mock.call_args.args[0]
             self.assertEqual(search_args.query, "minha busca")
 
+    def test_cmd_add_with_custom_timeout(self) -> None:
+        with mock.patch.object(
+            sys, "argv", ["brain", "add", "teste", "--modal", "ollama:qwen", "--timeout", "1200"]
+        ):
+            with mock.patch.object(cli, "cmd_add", return_value=21) as add_mock:
+                self.assertEqual(cli.main(), 21)
+            add_args = add_mock.call_args.args[0]
+            self.assertEqual(add_args.content, "teste")
+            self.assertEqual(add_args.model, "ollama:qwen")
+            self.assertEqual(add_args.timeout, 1200)
+
     def test_cmd_eval(self) -> None:
         args = argparse.Namespace(
             eval_set="test.json",

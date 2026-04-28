@@ -32,9 +32,17 @@ def cmd_add(args: argparse.Namespace) -> int:
     if isinstance(content, list):
         content = " ".join(content)
 
+    # Set timeout for local LLM if provided
+    timeout = getattr(args, "timeout", None)
+    if timeout:
+        import os
+        os.environ["BRAIN_LLM_TIMEOUT"] = str(timeout)
+
     print("🧠 Iniciando processamento da nota...")
     print(f"   Conteúdo: {content[:50]}{'...' if len(content) > 50 else ''}")
     print(f"   Modelo: {getattr(args, 'model', 'claude')}")
+    if timeout:
+        print(f"   Timeout: {timeout}s")
 
     # Try to use new Second Brain pipeline, but fallback to old behavior
     try:
@@ -371,6 +379,11 @@ def build_parser() -> argparse.ArgumentParser:
     add_parser.add_argument(
         "--no-index", action="store_true", help="Desabilita re-indexação automática."
     )
+    add_parser.add_argument(
+        "--timeout",
+        type=int,
+        help="Timeout para modelos locais em segundos (padrão: 600). Útil para ollama:modelos lentos.",
+    )
     add_parser.set_defaults(
         func=lambda ns: cmd_add(
             argparse.Namespace(
@@ -381,6 +394,7 @@ def build_parser() -> argparse.ArgumentParser:
                 model=getattr(ns, "model", "claude"),
                 no_link=getattr(ns, "no_link", False),
                 no_index=getattr(ns, "no_index", False),
+                timeout=getattr(ns, "timeout", None),
             )
         )
     )
