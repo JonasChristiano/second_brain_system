@@ -495,7 +495,9 @@ class CliTests(unittest.TestCase):
 
     def test_cmd_add_with_custom_timeout(self) -> None:
         with mock.patch.object(
-            sys, "argv", ["brain", "add", "teste", "--modal", "ollama:qwen", "--timeout", "1200"]
+            sys,
+            "argv",
+            ["brain", "add", "teste", "--modal", "ollama:qwen", "--timeout", "1200"],
         ):
             with mock.patch.object(cli, "cmd_add", return_value=21) as add_mock:
                 self.assertEqual(cli.main(), 21)

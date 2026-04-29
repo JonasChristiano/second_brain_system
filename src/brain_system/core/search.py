@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class SmartSearch:
     """Provides intelligent note search with related notes and suggestions."""
 
-    def __init__(self, vault_path: Path = None):
+    def __init__(self, vault_path: Path | None = None):
         """Initialize search engine."""
         self.vault_path = vault_path or VAULT_NOTES
         self._build_note_index()
@@ -99,7 +99,10 @@ class SmartSearch:
                 for note_id, note_info in self.notes_index.items():
                     if note_id not in processed_notes:
                         # Match based on content similarity
-                        if "content" in rag_result and len(rag_result["content"]) > 20:
+                        if (
+                            "content" in rag_result
+                            and len(str(rag_result["content"])) > 20
+                        ):
                             note_content = note_info["path"].read_text(
                                 encoding="utf-8"
                             )[:100]
@@ -144,7 +147,7 @@ class SmartSearch:
         return result
 
     def _find_related_notes(
-        self, note_id: str, exclude: set = None
+        self, note_id: str, exclude: set | None = None
     ) -> List[Dict[str, str]]:
         """Find notes related by tags or existing links."""
         if exclude is None:
@@ -180,7 +183,9 @@ class SmartSearch:
 
         return sorted(related, key=lambda x: x.get("score", 0), reverse=True)
 
-    def _suggest_links(self, note_id: str, exclude: set = None) -> List[Dict[str, str]]:
+    def _suggest_links(
+        self, note_id: str, exclude: set | None = None
+    ) -> List[Dict[str, str]]:
         """Suggest new [[links]] for a note."""
         if exclude is None:
             exclude = set()

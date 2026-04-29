@@ -82,7 +82,9 @@ class LocalClient(LLMClient):
         elif self.model.startswith("local:"):
             model_name = self.model.split(":", 1)[1]
         else:
-            raise ValueError("Local model must be specified as ollama:<model> or local:<model>")
+            raise ValueError(
+                "Local model must be specified as ollama:<model> or local:<model>"
+            )
 
         try:
             # Local models can take longer, use generous timeout
@@ -105,7 +107,9 @@ class LocalClient(LLMClient):
 
 
 def get_client(model: str | None = None) -> LLMClient:
-    target = model or os.environ.get("BRAIN_MODEL", "openai")
+    target = model or os.environ.get(
+        "BRAIN_MODEL", os.environ.get("BRAIN_MODEL", "ollama:qwen3.5:4b")
+    )
     if target.startswith("openai"):
         return OpenAIClient(target)
     if target.startswith("claude"):

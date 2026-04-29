@@ -36,6 +36,7 @@ def cmd_add(args: argparse.Namespace) -> int:
     timeout = getattr(args, "timeout", None)
     if timeout:
         import os
+
         os.environ["BRAIN_LLM_TIMEOUT"] = str(timeout)
 
     print("🧠 Iniciando processamento da nota...")
@@ -120,13 +121,13 @@ def cmd_search(args: argparse.Namespace) -> int:
 
     # Show related notes
     if result["related_notes"]:
-        print(f"\n🔗 Notas relacionadas:")
+        print("\n🔗 Notas relacionadas:")
         for note in result["related_notes"]:
             print(f"   - {note['title']} ({note.get('reason', 'relacionada')})")
 
     # Show suggested links
     if result["suggested_links"]:
-        print(f"\n💡 Links sugeridos:")
+        print("\n💡 Links sugeridos:")
         for link in result["suggested_links"]:
             print(f"   - [[{link['to']}]] ({link.get('reason', 'sugerido')})")
 

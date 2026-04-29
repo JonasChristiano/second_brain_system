@@ -114,7 +114,9 @@ class NoteIngestion:
             process_result = process_note(inbox_note, model=model)
             if not process_result["success"]:
                 result["success"] = False
-                result["error"] = f"Processamento falhou: {process_result.get('error') or 'erro desconhecido'}"
+                result["error"] = (
+                    f"Processamento falhou: {process_result.get('error') or 'erro desconhecido'}"
+                )
                 result["note_path"] = str(inbox_note)
                 logger.error(f"✗ Note processing failed: {result['error']}")
                 print(f"   ❌ {result['error']}")
