@@ -1,12 +1,32 @@
-# Python-generated files
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.py[oc]
-build/
+*.py[cod]
+*$py.class
+
+# Ambientes Virtuais
+venv/
+.venv/
+env/
+ENV/
+bin/
+lib/
+
+# Distribuição / Pacotes
 dist/
-wheels/
-*.egg-info
+build/
+*.egg-info/
 
-# Virtual environments
-.venv
+# Variáveis de Ambiente (SENSÍVEL)
+.env
+.flaskenv
 
-vault/
+# IDEs e Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testes e Coverage
+.pytest_cache/
+.coverage
+htmlcov/
