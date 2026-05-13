@@ -4,8 +4,21 @@ import argparse
 import json
 import shutil
 import subprocess
+import os
 import sys
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    logging.warning("python-dotenv não instalado, continuando sem carregar .env")
+    pass  # python-dotenv not installed, continue without .env loading
 
 from .help import HelpSystem, cmd_help
 from .llm_adapter import ask
@@ -22,11 +35,20 @@ from .core.optimizer import optimize_vault, cleanup_vault
 
 def run_command(args: list[str]) -> int:
     result = subprocess.run(args, cwd=ROOT)
+    logger.info(f"[COMMAND] Executado: {args}")
+    stdout = getattr(result, "stdout", None)
+    stderr = getattr(result, "stderr", None)
+    if stdout is not None:
+        logger.info(f"[COMMAND] Saida: #{stdout}#")
+    if stderr is not None:
+        logger.info(f"[COMMAND] Erro: #{stderr}#")
     return result.returncode
 
 
 def cmd_add(args: argparse.Namespace) -> int:
     """Add and process a new note using Second Brain ingestion pipeline."""
+    logger.info("[CLI] Comando 'add' iniciado")
+
     # Handle both old format (string) and new format (list)
     content = args.content
     if isinstance(content, list):
@@ -35,13 +57,21 @@ def cmd_add(args: argparse.Namespace) -> int:
     # Set timeout for local LLM if provided
     timeout = getattr(args, "timeout", None)
     if timeout:
-        import os
-
         os.environ["BRAIN_LLM_TIMEOUT"] = str(timeout)
+        logger.debug(f"[CLI] Timeout configurado: {timeout}s")
+
+    MODEL = getattr(args, "model", None) or os.environ.get("BRAIN_MODEL", "qwen3:4b")
+
+    logger.info(
+        f"[CLI] Adicionando nota - Modelo: {MODEL}, Tamanho: {len(content)} chars"
+    )
+    logger.debug(
+        f"[CLI] Conteúdo: {content[:100]}{'...' if len(content) > 100 else ''}"
+    )
 
     print("🧠 Iniciando processamento da nota...")
     print(f"   Conteúdo: {content[:50]}{'...' if len(content) > 50 else ''}")
-    print(f"   Modelo: {getattr(args, 'model', 'claude')}")
+    print(f"   Modelo: {MODEL}")
     if timeout:
         print(f"   Timeout: {timeout}s")
 
@@ -53,25 +83,29 @@ def cmd_add(args: argparse.Namespace) -> int:
             # Fallback to old behavior when vault structure doesn't exist
             raise FileNotFoundError("Vault structure not found")
 
+        logger.info("[CLI] Usando pipeline moderno de ingestão")
         print("\n📝 Salvando nota na inbox...")
         result = ingest_note(
             content=content,
             title=getattr(args, "title", None),
-            model=getattr(args, "model", "claude"),
+            model=getattr(args, "model", MODEL),
             auto_link=not getattr(args, "no_link", False),
             auto_index=not getattr(args, "no_index", False),
         )
 
         if result["success"]:
-            print(f"\n✅ Nota adicionada com sucesso!")
+            logger.info(f"[CLI] Nota adicionada com sucesso: {result['note_path']}")
+            print("\n✅ Nota adicionada com sucesso!")
             print(f"   📄 Arquivo: {result['note_path']}")
             print(f"   🔄 Processos: {', '.join(result['steps'])}")
             return 0
         else:
+            logger.error(f"[CLI] Erro ao adicionar nota: {result['error']}")
             print(f"\n❌ Erro ao adicionar nota: {result['error']}", file=sys.stderr)
             return 1
     except (FileNotFoundError, Exception) as e:
         # Fallback to old behavior for compatibility with existing tests
+        logger.warning(f"[CLI] Vault não encontrado, usando pipeline legado: {e}")
         print("\n🔄 Usando pipeline legado (vault não encontrado)...")
         print("   Construindo prompt...")
         prompt = build_prompt("brain_orchestrator", content, str(NOTES_DIR))
@@ -84,14 +118,24 @@ def cmd_add(args: argparse.Namespace) -> int:
 
 def cmd_search(args: argparse.Namespace) -> int:
     """Smart search with related notes and suggestions."""
+    logger.info("[CLI] Comando 'search' iniciado")
+
     query = args.query
     # Handle both string and list formats
     if isinstance(query, list):
         query = " ".join(query)
 
+    logger.info(f"[CLI] Busca iniciada - Query: '{query}'")
+    top_k = getattr(args, "top_k", 5)
+    logger.debug(f"[CLI] Parâmetros: top_k={top_k}")
+
     try:
-        result = smart_search(query, top_k=getattr(args, "top_k", 5))
-    except Exception:
+        result = smart_search(query, top_k=top_k)
+        logger.info(
+            f"[CLI] Busca concluída - {result.get('total_results', 0)} resultado(s)"
+        )
+    except Exception as e:
+        logger.warning(f"[CLI] Erro na busca inteligente, usando fallback: {e}")
         result = {
             "top_notes": [],
             "related_notes": [],
@@ -101,6 +145,7 @@ def cmd_search(args: argparse.Namespace) -> int:
 
     if not result["top_notes"]:
         # Fallback para o comportamento legado quando não há resultados do novo search
+        logger.info("[CLI] Nenhum resultado encontrado, usando busca legado")
         return run_command([sys.executable, "rag/search.py", query])
 
     print(f"\n🔍 Resultado da busca: '{query}'")
@@ -366,13 +411,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_parser.add_argument(
         "--model",
-        default="claude",
-        help="Modelo LLM a usar (padrão: claude).",
+        default=os.environ.get("BRAIN_MODEL", "qwen3:4b"),
+        help="Modelo LLM a usar (padrão: ollama:qwen3:4b).",
     )
     add_parser.add_argument(
         "--modal",
         dest="model",
-        help="Alias para --model. Modelos como ollama:qwen3.5 são aceitos.",
+        help="Alias para --model. Modelos como ollama:qwen3:4b são aceitos.",
     )
     add_parser.add_argument(
         "--no-link", action="store_true", help="Desabilita auto-linking."
@@ -392,7 +437,7 @@ def build_parser() -> argparse.ArgumentParser:
                 if isinstance(ns.content, list)
                 else ns.content,
                 title=getattr(ns, "title", None),
-                model=getattr(ns, "model", "claude"),
+                model=getattr(ns, "model", "ollama:qwen3:4b"),
                 no_link=getattr(ns, "no_link", False),
                 no_index=getattr(ns, "no_index", False),
                 timeout=getattr(ns, "timeout", None),
@@ -595,6 +640,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    # Configurar logging para toda a aplicação
+    from .logging_config import setup_logging
+
+    setup_logging(level=logging.INFO)
+
     parser = build_parser()
     args = parser.parse_args()
     return args.func(args)

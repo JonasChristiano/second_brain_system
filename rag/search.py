@@ -14,4 +14,4 @@ from brain_system.rag import search as search_index
 
 
 if __name__ == "__main__":
-    search_index(sys.argv[1])
+    print(search_index(sys.argv[1]))
