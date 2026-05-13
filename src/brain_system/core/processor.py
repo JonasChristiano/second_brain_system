@@ -12,6 +12,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Any
 from datetime import datetime
+import re
 
 from brain_system.skills import build_prompt, load_skill
 from brain_system.llm_adapter import ask
@@ -129,9 +130,7 @@ class NoteProcessor:
             # Call LLM to process
             processed = ask(prompt, model=self.model)
 
-            # Extract markdown content if wrapped in code blocks
-            if "```" in processed:
-                processed = self._extract_markdown(processed)
+            processed = self._normalize_llm_output(processed)
 
             return processed or content
 
@@ -152,6 +151,38 @@ class NoteProcessor:
             if len(parts) >= 2:
                 return parts[1].strip()
         return text
+
+    @classmethod
+    def _normalize_llm_output(cls, text: str) -> str:
+        """Normalize common LLM wrappers (code fences, stray language tags)."""
+        if not text:
+            return text
+
+        normalized = text.strip()
+
+        # If response is code-wrapped, extract inner content first.
+        if "```" in normalized:
+            normalized = cls._extract_markdown(normalized).strip()
+
+        # Some models return a stray language tag line like:
+        #   yaml
+        #   ---
+        # or:
+        #   markdown
+        #   ---
+        normalized = re.sub(
+            r"^(yaml|markdown)\s*\n(?=---\s*$)",
+            "",
+            normalized,
+            flags=re.IGNORECASE | re.MULTILINE,
+        )
+
+        # If still starts with the language tag followed by frontmatter start, remove that first line.
+        lines = normalized.splitlines()
+        if len(lines) >= 2 and lines[0].strip().lower() in {"yaml", "markdown"} and lines[1].strip() == "---":
+            normalized = "\n".join(lines[1:]).lstrip()
+
+        return normalized
 
     def process_batch(self, note_paths: list[Path]) -> Dict[str, Any]:
         """

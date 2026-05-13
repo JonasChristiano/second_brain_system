@@ -39,16 +39,74 @@ class NoteIngestion:
         return raw_title.strip("_")[:64] if raw_title else ""
 
     def _infer_title_from_content(self, content: str) -> str:
-        text = content.strip()
+        text = (content or "").strip()
         if not text:
             return "nota"
 
-        first_line = text.splitlines()[0].strip()
-        if first_line:
-            return first_line
+        # Remove stray language tag some LLMs prepend (e.g., "yaml")
+        lines = text.splitlines()
+        if len(lines) >= 2 and lines[0].strip().lower() in {"yaml", "markdown"}:
+            text = "\n".join(lines[1:]).lstrip()
+
+        # Prefer frontmatter title if present
+        if text.startswith("---"):
+            m = re.search(r"(?ms)^---\s*\n(.*?)\n---\s*\n", text)
+            if m:
+                frontmatter = m.group(1)
+                t = re.search(r"(?m)^\s*title:\s*(.+?)\s*$", frontmatter)
+                if t:
+                    return t.group(1).strip().strip("'\"")
+
+        # Prefer first markdown heading
+        h = re.search(r"(?m)^\s*#\s+(.+?)\s*$", text)
+        if h:
+            return h.group(1).strip()
+
+        # Otherwise first meaningful line (skip frontmatter markers)
+        for line in text.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if stripped in {"---", "yaml", "markdown"}:
+                continue
+            if stripped.startswith("```"):
+                continue
+            return stripped
 
         words = text.split()
-        return "_".join(words[:6]) if words else "nota"
+        return " ".join(words[:6]) if words else "nota"
+
+    @staticmethod
+    def ensure_frontmatter_title(content: str, title: str) -> str:
+        """Ensure frontmatter contains a `title:` field when frontmatter exists."""
+        text = (content or "").lstrip()
+        if not text.startswith("---"):
+            return content
+
+        m = re.search(r"(?ms)^---\s*\n(.*?)\n---\s*\n?", text)
+        if not m:
+            return content
+
+        frontmatter = m.group(1)
+        if re.search(r"(?m)^\s*title:\s*.+$", frontmatter):
+            return content
+
+        # Insert title near the top (after id if present, else first line)
+        lines = frontmatter.splitlines()
+        insert_at = 0
+        for i, line in enumerate(lines):
+            if line.strip().startswith("id:"):
+                insert_at = i + 1
+                break
+        lines.insert(insert_at, f"title: {title}")
+        new_frontmatter = "\n".join(lines)
+        rebuilt = re.sub(
+            r"(?ms)^---\s*\n(.*?)\n---",
+            f"---\n{new_frontmatter}\n---",
+            text,
+            count=1,
+        )
+        return rebuilt
 
     def _build_final_note_path(self, title: str, fallback_name: str) -> Path:
         safe_name = self._sanitize_title(title) or fallback_name

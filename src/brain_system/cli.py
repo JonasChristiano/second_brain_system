@@ -240,6 +240,13 @@ def cmd_refine(args: argparse.Namespace) -> int:
                 ingestion = NoteIngestion()
                 content = note_path.read_text(encoding="utf-8")
                 inferred_title = ingestion._infer_title_from_content(content)
+
+                # Ensure title exists in frontmatter if frontmatter is present
+                fixed = NoteIngestion.ensure_frontmatter_title(content, inferred_title)
+                if fixed != content:
+                    note_path.write_text(fixed, encoding="utf-8")
+                    content = fixed
+
                 final_path = ingestion._build_final_note_path(
                     inferred_title, note_path.stem
                 )
