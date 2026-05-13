@@ -24,6 +24,7 @@ from .help import HelpSystem, cmd_help
 from .llm_adapter import ask
 from .agents.improver import improve_skill
 from .agents.pipeline import run_eval_pipeline
+from . import PROJECT_NAME, PROJECT_SHORT, __author__, __version__
 from .paths import NOTES_DIR, ROOT, SKILLS_DIR, VAULT_NOTES
 from .skills import build_prompt, ensure_skill_exists, list_skills, load_text, slugify
 
@@ -31,6 +32,15 @@ from .skills import build_prompt, ensure_skill_exists, list_skills, load_text, s
 from .core.ingestion import ingest_note
 from .core.search import smart_search
 from .core.optimizer import optimize_vault, cleanup_vault
+
+
+def print_banner() -> None:
+    if os.environ.get("SBS_NO_BANNER") == "1":
+        return
+    print(f"{PROJECT_NAME} ({PROJECT_SHORT})")
+    print(f"Autor: {__author__}")
+    print(f"Versão: {__version__}")
+    print("-" * 48)
 
 
 def run_command(args: list[str]) -> int:
@@ -644,6 +654,8 @@ def main() -> int:
     from .logging_config import setup_logging
 
     setup_logging(level=logging.INFO)
+
+    print_banner()
 
     parser = build_parser()
     args = parser.parse_args()
