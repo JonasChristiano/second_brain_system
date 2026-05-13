@@ -21,10 +21,50 @@ if str(SRC_DIR) not in sys.path:
 import restructure
 
 
+class FakeSessionState:
+    def __init__(self) -> None:
+        self._data: dict[str, object] = {}
+
+    def __getitem__(self, key: str) -> object:
+        return self._data[key]
+
+    def __setitem__(self, key: str, value: object) -> None:
+        self._data[key] = value
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._data
+
+    def __getattr__(self, name: str) -> object:
+        try:
+            return self._data[name]
+        except KeyError:
+            raise AttributeError(f"'FakeSessionState' object has no attribute '{name}'")
+
+    def __setattr__(self, name: str, value: object) -> None:
+        if name == "_data":
+            super().__setattr__(name, value)
+        else:
+            self._data[name] = value
+
+
 class FakeStreamlit:
     def __init__(self, search_value: str) -> None:
         self.search_value = search_value
         self.calls: list[tuple[str, object]] = []
+        self.session_state = FakeSessionState()
+        self.sidebar = self
+
+    def __enter__(self) -> "FakeStreamlit":
+        return self
+
+    def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
+        pass
+
+    def set_page_config(self, layout: str) -> None:
+        self.calls.append(("set_page_config", layout))
+
+    def markdown(self, text: str, unsafe_allow_html: bool = False) -> None:
+        self.calls.append(("markdown", text))
 
     def title(self, text: str) -> None:
         self.calls.append(("title", text))
@@ -36,8 +76,19 @@ class FakeStreamlit:
         self.calls.append(("text_input", label))
         return self.search_value
 
-    def write(self, text: str) -> None:
-        self.calls.append(("write", text))
+    def button(self, text: str, key: str | None = None) -> bool:
+        self.calls.append(("button", text))
+        return False
+
+    def columns(self, spec: list[int]) -> list["FakeStreamlit"]:
+        return [self, self]
+
+    def text_area(self, label: str, height: int = 100) -> str:
+        self.calls.append(("text_area", label))
+        return "sample note content"
+
+    def empty(self) -> "FakeStreamlit":
+        return self
 
 
 class DashboardTests(unittest.TestCase):
@@ -53,6 +104,22 @@ class DashboardTests(unittest.TestCase):
         fake_paths = types.ModuleType("brain_system.paths")
         fake_paths.NOTES_DIR = notes_dir
         path_without_src = [path for path in sys.path if path != str(SRC_DIR)]
+
+        # Initialize session state with notes
+        streamlit.session_state.notes = [
+            {
+                "id": f"id-{i}",
+                "title": name,
+                "summary": f"Summary for {name}",
+                "content": f"Content for {name}",
+                "tags": ["note"],
+                "created": "2023-01-01T00:00:00",
+                "version": 1,
+            }
+            for i, name in enumerate(note_names)
+        ]
+        streamlit.session_state.view = "new"
+        streamlit.session_state.selected = None
 
         with (
             mock.patch.dict(
@@ -71,9 +138,11 @@ class DashboardTests(unittest.TestCase):
 
     def test_dashboard_lists_matching_notes(self) -> None:
         streamlit = self.run_dashboard("ls", ["comando-ls.md", "python.md"])
-        self.assertIn(("title", "🧠 Brain Dashboard"), streamlit.calls)
-        self.assertIn(("metric", ("Notas totais", 2)), streamlit.calls)
-        self.assertIn(("write", "comando-ls.md"), streamlit.calls)
+        self.assertIn(("button", "comando-ls.md"), streamlit.calls)
+        self.assertIn(("markdown", '<div class="card">Notes: 2</div>'), streamlit.calls)
+        self.assertIn(
+            ("markdown", '<div class="card">Avg Size: 46</div>'), streamlit.calls
+        )
 
     def test_dashboard_skips_non_matching_notes(self) -> None:
         streamlit = self.run_dashboard("zzz", ["comando-ls.md", "python.md"])
@@ -82,7 +151,9 @@ class DashboardTests(unittest.TestCase):
 
 
 class RestructureTests(unittest.TestCase):
-    def test_reorganize_vault_moves_markdown_and_attachments_and_creates_structure(self) -> None:
+    def test_reorganize_vault_moves_markdown_and_attachments_and_creates_structure(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             base = Path(temp_dir) / "vault"
             base.mkdir()
