@@ -30,8 +30,12 @@ from .skills import build_prompt, ensure_skill_exists, list_skills, load_text, s
 
 # Second Brain Core modules
 from .core.ingestion import ingest_note
+from .core.processor import process_note as process_note_pipeline
+from .core.linker import auto_link_note
 from .core.search import smart_search
 from .core.optimizer import optimize_vault, cleanup_vault
+from .paths import VAULT_INBOX
+from .rag import build_index as rag_build_index
 
 
 def print_banner() -> None:
@@ -203,6 +207,68 @@ def cmd_restructure(args: argparse.Namespace) -> int:
 
 
 def cmd_refine(args: argparse.Namespace) -> int:
+    # Se for um arquivo na inbox, use o pipeline do Second Brain e finalize
+    # movendo para notes + indexando.
+    if args.file:
+        note_path = Path(args.file)
+        if note_path.exists() and note_path.is_file():
+            try:
+                is_inbox_note = str(note_path.resolve()).startswith(
+                    str(VAULT_INBOX.resolve())
+                )
+            except Exception:
+                is_inbox_note = str(note_path).startswith(str(VAULT_INBOX))
+
+            if is_inbox_note:
+                model = args.model
+                print("🧹 Refinando nota (pipeline SBS)...")
+                print(f"   📄 Arquivo: {note_path}")
+                if model:
+                    print(f"   🤖 Modelo: {model}")
+
+                process_result = process_note_pipeline(
+                    note_path, model=model or "claude"
+                )
+                if not process_result.get("success", False):
+                    error = process_result.get("error") or "erro desconhecido"
+                    print(f"\n❌ Refinamento falhou: {error}", file=sys.stderr)
+                    return 1
+
+                # Move inbox -> notes (mantém nome final estável)
+                from .core.ingestion import NoteIngestion
+
+                ingestion = NoteIngestion()
+                content = note_path.read_text(encoding="utf-8")
+                inferred_title = ingestion._infer_title_from_content(content)
+                final_path = ingestion._build_final_note_path(
+                    inferred_title, note_path.stem
+                )
+                print("\n📁 Movendo para vault/notes...")
+                note_path.rename(final_path)
+                print(f"   ✓ Movido para: {final_path.name}")
+
+                # Auto-link + index sempre (melhor esforço)
+                print("\n🔗 Executando auto-linking...")
+                try:
+                    link_result = auto_link_note(final_path)
+                    if link_result.get("links_added", 0) > 0:
+                        print(f"   ✓ {link_result['links_added']} links adicionados")
+                    else:
+                        print("   ✓ Nenhum link novo encontrado")
+                except Exception as e:
+                    print(f"   ⚠️  Auto-link falhou: {e}")
+
+                print("\n🗂️  Re-indexando vault (RAG)...")
+                try:
+                    rag_build_index()
+                    print("   ✓ Indexação concluída")
+                except Exception as e:
+                    print(f"   ⚠️  Indexação falhou: {e}")
+
+                print("\n✅ Nota refinada.")
+                return 0
+
+    # Fallback legado (mantido para compatibilidade com testes e uso em batch)
     target = args.file or str(NOTES_DIR)
 
     if args.instruction:
