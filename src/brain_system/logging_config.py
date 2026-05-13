@@ -6,6 +6,7 @@ para facilitar debugging e monitoramento do sistema.
 """
 
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -13,9 +14,10 @@ from pathlib import Path
 LOGS_DIR = Path(__file__).parent.parent.parent / "logs"
 LOGS_DIR.mkdir(exist_ok=True)
 
-# Formato padrão para logs
-LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-LOG_FORMAT_DETAILED = (
+# Console deve ser legível para usuário final; detalhes vão para arquivo.
+LOG_FORMAT_CONSOLE = "%(message)s"
+LOG_FORMAT_FILE = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+LOG_FORMAT_FILE_DETAILED = (
     "%(asctime)s - [%(filename)s:%(lineno)d] - %(name)s - %(levelname)s - %(message)s"
 )
 
@@ -33,8 +35,9 @@ def setup_logging(
         log_file: Arquivo para salvar logs (padrão: logs/brain_system.log)
         detailed: Se True, usa formato detalhado com nome de arquivo e linha
     """
-    log_format = LOG_FORMAT_DETAILED if detailed else LOG_FORMAT
-    formatter = logging.Formatter(log_format)
+    file_format = LOG_FORMAT_FILE_DETAILED if detailed else LOG_FORMAT_FILE
+    file_formatter = logging.Formatter(file_format)
+    console_formatter = logging.Formatter(LOG_FORMAT_CONSOLE)
 
     # Configurar logger raiz
     root_logger = logging.getLogger()
@@ -43,11 +46,15 @@ def setup_logging(
     # Remover handlers existentes para evitar duplicação
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
+        try:
+            handler.close()
+        except Exception:
+            pass
 
     # Handler para console
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(level)
-    console_handler.setFormatter(formatter)
+    console_handler.setFormatter(console_formatter)
     root_logger.addHandler(console_handler)
 
     # Handler para arquivo (se especificado)
@@ -57,9 +64,11 @@ def setup_logging(
     try:
         file_handler = logging.FileHandler(log_file, encoding="utf-8")
         file_handler.setLevel(logging.DEBUG)  # Sempre salvar DEBUG no arquivo
-        file_handler.setFormatter(formatter)
+        file_handler.setFormatter(file_formatter)
         root_logger.addHandler(file_handler)
-        print(f"Logs sendo salvos em: {log_file}")
+        # Evita poluir saída padrão; habilite via env se quiser mostrar o path.
+        if "SBS_SHOW_LOG_PATH" in os.environ:
+            print(f"Logs sendo salvos em: {log_file}")
     except Exception as e:
         print(f"Aviso: Não foi possível criar handler de arquivo: {e}")
 

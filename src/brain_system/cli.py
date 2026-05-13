@@ -408,6 +408,16 @@ def build_parser() -> argparse.ArgumentParser:
         prog="brain",
         description="CLI para orquestrar notas, skills e buscas do Brain System.",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Mostra logs no terminal (modo debug).",
+    )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Reduz ao mínimo as mensagens de log no terminal.",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     add_parser = subparsers.add_parser(
@@ -650,13 +660,18 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+
     # Configurar logging para toda a aplicação
     from .logging_config import setup_logging
 
-    setup_logging(level=logging.INFO)
+    if getattr(args, "quiet", False):
+        setup_logging(level=logging.ERROR, detailed=False)
+    elif getattr(args, "debug", False):
+        setup_logging(level=logging.INFO, detailed=True)
+    else:
+        setup_logging(level=logging.WARNING, detailed=False)
 
     print_banner()
-
-    parser = build_parser()
-    args = parser.parse_args()
     return args.func(args)
