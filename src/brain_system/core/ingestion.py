@@ -15,6 +15,7 @@ from typing import Dict, Any
 
 from brain_system.core.processor import process_note
 from brain_system.core.linker import auto_link_note
+from brain_system.core.frontmatter import ensure_minimum_frontmatter, infer_title
 from brain_system.paths import VAULT_NOTES, VAULT_INBOX
 from brain_system.rag import build_index as rag_build_index
 
@@ -39,74 +40,12 @@ class NoteIngestion:
         return raw_title.strip("_")[:64] if raw_title else ""
 
     def _infer_title_from_content(self, content: str) -> str:
-        text = (content or "").strip()
-        if not text:
-            return "nota"
-
-        # Remove stray language tag some LLMs prepend (e.g., "yaml")
-        lines = text.splitlines()
-        if len(lines) >= 2 and lines[0].strip().lower() in {"yaml", "markdown"}:
-            text = "\n".join(lines[1:]).lstrip()
-
-        # Prefer frontmatter title if present
-        if text.startswith("---"):
-            m = re.search(r"(?ms)^---\s*\n(.*?)\n---\s*\n", text)
-            if m:
-                frontmatter = m.group(1)
-                t = re.search(r"(?m)^\s*title:\s*(.+?)\s*$", frontmatter)
-                if t:
-                    return t.group(1).strip().strip("'\"")
-
-        # Prefer first markdown heading
-        h = re.search(r"(?m)^\s*#\s+(.+?)\s*$", text)
-        if h:
-            return h.group(1).strip()
-
-        # Otherwise first meaningful line (skip frontmatter markers)
-        for line in text.splitlines():
-            stripped = line.strip()
-            if not stripped:
-                continue
-            if stripped in {"---", "yaml", "markdown"}:
-                continue
-            if stripped.startswith("```"):
-                continue
-            return stripped
-
-        words = text.split()
-        return " ".join(words[:6]) if words else "nota"
+        return infer_title(content)
 
     @staticmethod
     def ensure_frontmatter_title(content: str, title: str) -> str:
-        """Ensure frontmatter contains a `title:` field when frontmatter exists."""
-        text = (content or "").lstrip()
-        if not text.startswith("---"):
-            return content
-
-        m = re.search(r"(?ms)^---\s*\n(.*?)\n---\s*\n?", text)
-        if not m:
-            return content
-
-        frontmatter = m.group(1)
-        if re.search(r"(?m)^\s*title:\s*.+$", frontmatter):
-            return content
-
-        # Insert title near the top (after id if present, else first line)
-        lines = frontmatter.splitlines()
-        insert_at = 0
-        for i, line in enumerate(lines):
-            if line.strip().startswith("id:"):
-                insert_at = i + 1
-                break
-        lines.insert(insert_at, f"title: {title}")
-        new_frontmatter = "\n".join(lines)
-        rebuilt = re.sub(
-            r"(?ms)^---\s*\n(.*?)\n---",
-            f"---\n{new_frontmatter}\n---",
-            text,
-            count=1,
-        )
-        return rebuilt
+        """Backward-compatible helper: ensure minimum frontmatter includes title."""
+        return ensure_minimum_frontmatter(content, defaults={}, ensure_title=True)
 
     def _build_final_note_path(self, title: str, fallback_name: str) -> Path:
         safe_name = self._sanitize_title(title) or fallback_name
@@ -187,7 +126,17 @@ class NoteIngestion:
             )
 
             # Step 3: Move to notes folder with a descriptive filename
-            final_title = title or self._infer_title_from_content(content)
+            processed_content = inbox_note.read_text(encoding="utf-8")
+            processed_fixed = ensure_minimum_frontmatter(
+                processed_content,
+                defaults={"type": "note", "status": "active"},
+                ensure_title=True,
+            )
+            if processed_fixed != processed_content:
+                inbox_note.write_text(processed_fixed, encoding="utf-8")
+                processed_content = processed_fixed
+
+            final_title = title or self._infer_title_from_content(processed_content)
             final_note = self._build_final_note_path(
                 final_title, note_filename.replace(".md", "")
             )
