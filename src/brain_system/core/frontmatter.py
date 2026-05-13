@@ -11,11 +11,22 @@ _FRONTMATTER_RE = re.compile(r"(?ms)^---\s*\n(.*?)\n---\s*\n?")
 def split_frontmatter(text: str) -> tuple[str | None, str]:
     """Return (frontmatter, body). Frontmatter does not include --- markers."""
     source = text or ""
-    m = _FRONTMATTER_RE.match(source.lstrip())
+    stripped = source.lstrip()
+
+    # Drop a leading language tag line like "md"/"yaml"/"markdown" before YAML frontmatter.
+    lines = stripped.splitlines()
+    if (
+        len(lines) >= 2
+        and lines[0].strip().lower() in {"yaml", "markdown", "md"}
+        and lines[1].strip() == "---"
+    ):
+        stripped = "\n".join(lines[1:]).lstrip()
+
+    m = _FRONTMATTER_RE.match(stripped)
     if not m:
         return None, source
     frontmatter = m.group(1)
-    body = source.lstrip()[m.end() :]
+    body = stripped[m.end() :]
     return frontmatter, body
 
 
@@ -31,7 +42,7 @@ def infer_title(text: str) -> str:
 
     # Drop stray language tag lines (common from some LLMs)
     lines = content.splitlines()
-    if len(lines) >= 2 and lines[0].strip().lower() in {"yaml", "markdown"}:
+    if len(lines) >= 2 and lines[0].strip().lower() in {"yaml", "markdown", "md"}:
         content = "\n".join(lines[1:]).lstrip()
 
     frontmatter, body = split_frontmatter(content)
@@ -48,7 +59,7 @@ def infer_title(text: str) -> str:
         stripped = line.strip()
         if not stripped:
             continue
-        if stripped in {"---", "yaml", "markdown"}:
+        if stripped in {"---", "yaml", "markdown", "md"}:
             continue
         if stripped.startswith("```"):
             continue
@@ -112,4 +123,3 @@ def ensure_minimum_frontmatter(
         fm = "\n".join(fm_lines).rstrip()
 
     return f"---\n{fm}\n---\n{body.lstrip()}"
-

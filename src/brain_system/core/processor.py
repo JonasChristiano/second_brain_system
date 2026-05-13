@@ -171,7 +171,7 @@ class NoteProcessor:
         #   markdown
         #   ---
         normalized = re.sub(
-            r"^(yaml|markdown)\s*\n(?=---\s*$)",
+            r"^(yaml|markdown|md)\s*\n(?=---\s*$)",
             "",
             normalized,
             flags=re.IGNORECASE | re.MULTILINE,
@@ -179,7 +179,11 @@ class NoteProcessor:
 
         # If still starts with the language tag followed by frontmatter start, remove that first line.
         lines = normalized.splitlines()
-        if len(lines) >= 2 and lines[0].strip().lower() in {"yaml", "markdown"} and lines[1].strip() == "---":
+        if (
+            len(lines) >= 2
+            and lines[0].strip().lower() in {"yaml", "markdown", "md"}
+            and lines[1].strip() == "---"
+        ):
             normalized = "\n".join(lines[1:]).lstrip()
 
         return normalized
