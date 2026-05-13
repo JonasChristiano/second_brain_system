@@ -208,4 +208,4 @@ cat CHEAT_SHEET.md
 
 **Status**: ✅ Completo e testado
 **Data**: Abril 2026
-**Versão**: v0.4.0+
+**Versão**: v0.4.1+

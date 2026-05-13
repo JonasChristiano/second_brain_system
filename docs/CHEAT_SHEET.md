@@ -111,4 +111,4 @@ export BRAIN_DEBUG=1
 - Issues: `https://github.com/user/brain-system/issues`
 
 ---
-**Versão**: v0.4.0 | **Data**: Abril 2026
+**Versão**: v0.4.1 | **Data**: Abril 2026
