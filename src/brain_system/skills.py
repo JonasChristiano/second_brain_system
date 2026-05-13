@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import re
+import logging
 from functools import lru_cache
 from pathlib import Path
 
 from .paths import CONTEXT_FILE, SKILLS_DIR
+
+logger = logging.getLogger(__name__)
 
 
 class Skill:
@@ -27,12 +30,16 @@ class Skill:
 @lru_cache(maxsize=32)
 def load_skill(skill_name: str) -> Skill:
     """Carrega e cacheia uma skill por nome."""
+    logger.debug(f"[SKILLS] Carregando skill: {skill_name}")
     skill_path = ensure_skill_exists(skill_name)
-    return Skill.from_path(skill_path)
+    skill = Skill.from_path(skill_path)
+    logger.info(f"[SKILLS] Skill carregada: {skill_name}")
+    return skill
 
 
 def reload_skill(skill_name: str) -> Skill:
     """Recarrega uma skill, limpando o cache."""
+    logger.info(f"[SKILLS] Recarregando skill: {skill_name}")
     load_skill.cache_clear()
     return load_skill(skill_name)
 
@@ -57,16 +64,20 @@ def get_skill_descriptions() -> dict[str, str]:
 
 def ensure_skill_exists(skill_name: str) -> Path:
     skill_path = SKILLS_DIR / skill_name / "SKILL.md"
+    logger.debug(f"[SKILLS] Verificando se skill existe: {skill_path}")
     if skill_path.exists():
         return skill_path
+    logger.error(f"[SKILLS] Skill não encontrada: {skill_name}")
     raise SystemExit(f"Skill nao encontrada: {skill_name}")
 
 
 def list_skills() -> list[Path]:
+    logger.debug(f"[SKILLS] Listando skills em {SKILLS_DIR}")
     skills = []
     for item in SKILLS_DIR.iterdir():
         if item.is_dir() and (item / "SKILL.md").exists():
             skills.append(item)
+    logger.debug(f"[SKILLS] {len(skills)} skill(s) encontrada(s)")
     return sorted(skills)
 
 

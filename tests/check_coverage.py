@@ -27,6 +27,8 @@ TARGETS = [
     ROOT / "src" / "brain_system" / "paths.py",
     ROOT / "src" / "brain_system" / "rag.py",
     ROOT / "src" / "brain_system" / "skills.py",
+    ROOT / "src" / "brain_system" / "llm" / "client.py",
+    ROOT / "src" / "brain_system" / "help.py",
     ROOT / "src" / "brain_system" / "vault_watch.py",
 ]
 
@@ -45,14 +47,22 @@ def executable_lines(path: Path) -> set[int]:
     executable: set[int] = set()
 
     for code_obj in iter_code_objects(code):
-        executable.update(line for _, line in dis.findlinestarts(code_obj) if line > 0)
+        executable.update(
+            line
+            for _, line in dis.findlinestarts(code_obj)
+            if line is not None and line > 0
+        )
 
     return executable
 
 
 def executed_lines(results: trace.CoverageResults, path: Path) -> set[int]:
     resolved = str(path.resolve())
-    return {line for (filename, line), _count in results.counts.items() if filename == resolved}
+    return {
+        line
+        for (filename, line), _count in results.counts.items()
+        if filename == resolved
+    }
 
 
 def main() -> int:

@@ -24,15 +24,15 @@ logger = logging.getLogger(__name__)
 class NoteIngestion:
     """Manages the complete note ingestion pipeline."""
 
-    def __init__(self, inbox_path: Path = None, notes_path: Path = None):
+    def __init__(self, inbox_path: Path | None = None, notes_path: Path | None = None):
         """Initialize ingestion system."""
         self.inbox_path = inbox_path or VAULT_INBOX
         self.notes_path = notes_path or VAULT_NOTES
         self.inbox_path.mkdir(parents=True, exist_ok=True)
         self.notes_path.mkdir(parents=True, exist_ok=True)
 
-    def _sanitize_title(self, title: str) -> str:
-        raw_title = title.strip().splitlines()[0]
+    def _sanitize_title(self, title: str | None) -> str:
+        raw_title = title.strip().splitlines()[0] if title else ""
         raw_title = raw_title.lower()
         raw_title = re.sub(r"[^\w\s-]", "", raw_title)
         raw_title = re.sub(r"[\s-]+", "_", raw_title)
@@ -62,7 +62,7 @@ class NoteIngestion:
     def ingest_note(
         self,
         content: str,
-        title: str = None,
+        title: str | None = None,
         model: str = "claude",
         auto_link: bool = True,
         auto_index: bool = True,
@@ -186,7 +186,7 @@ class NoteIngestion:
 
 def ingest_note(
     content: str,
-    title: str = None,
+    title: str | None = None,
     model: str = "claude",
     auto_link: bool = True,
     auto_index: bool = True,
