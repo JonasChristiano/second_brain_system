@@ -93,33 +93,67 @@ class SmartSearch:
                 return result
 
             # Map RAG results to our note index
-            processed_notes = set()
+            rag_scores: Dict[str, float] = {}
             for rag_result in rag_results:
+                # 1) Prefer direct mapping by source metadata from vector store.
+                source = rag_result.get("source")
+                if source:
+                    note_id = Path(str(source)).stem
+                    if note_id in self.notes_index:
+                        rag_scores[note_id] = max(
+                            rag_scores.get(note_id, 0.0),
+                            float(rag_result.get("score", 0.0) or 0.0),
+                        )
+                        continue
+
+                # 2) Fallback to content overlap.
                 # Try to find matching note
                 for note_id, note_info in self.notes_index.items():
-                    if note_id not in processed_notes:
-                        # Match based on content similarity
-                        if (
-                            "content" in rag_result
-                            and len(str(rag_result["content"])) > 20
-                        ):
-                            note_content = note_info["path"].read_text(
-                                encoding="utf-8"
-                            )[:100]
-                            if note_content in rag_result["content"]:
-                                result["top_notes"].append(
-                                    {
-                                        "title": note_info["title"],
-                                        "path": str(note_info["path"]),
-                                        "summary": note_info["summary"],
-                                        "relevance": rag_result.get("score", 0.8),
-                                        "tags": note_info["tags"],
-                                    }
-                                )
-                                processed_notes.add(note_id)
-                                break
+                    if "content" in rag_result and len(str(rag_result["content"])) > 20:
+                        note_content = note_info["path"].read_text(encoding="utf-8")[:120]
+                        if note_content and note_content in str(rag_result["content"]):
+                            rag_scores[note_id] = max(
+                                rag_scores.get(note_id, 0.0),
+                                float(rag_result.get("score", 0.0) or 0.0),
+                            )
+                            break
+
+            # 3) Combine semantic + lexical score and order globally.
+            ranked: list[tuple[float, str, Dict[str, Any]]] = []
+            for note_id, note_info in self.notes_index.items():
+                lexical_score = self._lexical_score(note_info, query)
+                rag_score = rag_scores.get(note_id, 0.0)
+
+                # Keep notes found semantically or with meaningful lexical signal.
+                if rag_score <= 0 and lexical_score <= 0:
+                    continue
+
+                if rag_score > 0 and lexical_score > 0:
+                    relevance = (0.45 * rag_score) + (0.55 * lexical_score)
+                elif lexical_score > 0:
+                    relevance = lexical_score
+                else:
+                    relevance = rag_score * 0.75
+
+                ranked.append((min(0.99, relevance), note_id, note_info))
+
+            ranked.sort(key=lambda item: item[0], reverse=True)
+
+            for relevance, note_id, note_info in ranked[:top_k]:
+                result["top_notes"].append(
+                    {
+                        "title": note_info["title"],
+                        "path": str(note_info["path"]),
+                        "summary": note_info["summary"],
+                        "relevance": relevance,
+                        "tags": note_info["tags"],
+                    }
+                )
 
             result["total_results"] = len(result["top_notes"])
+            processed_notes = {
+                Path(note["path"]).stem for note in result["top_notes"] if "path" in note
+            }
 
             # Find related notes based on tags and links
             if result["top_notes"]:
@@ -224,6 +258,35 @@ class SmartSearch:
         if tag_match > 0.5:
             reasons.append("shared tags")
         return ", ".join(reasons) or "related"
+
+    @staticmethod
+    def _strip_frontmatter(content: str) -> str:
+        match = re.match(r"(?ms)^---\s*\n.*?\n---\s*\n?", content)
+        if match:
+            return content[match.end() :]
+        return content
+
+    def _lexical_score(self, note_info: Dict[str, Any], query: str) -> float:
+        query_lower = (query or "").strip().lower()
+        if not query_lower:
+            return 0.0
+
+        title = str(note_info.get("title", "")).lower()
+        tags = [str(t).lower() for t in note_info.get("tags", [])]
+        content_full = note_info["path"].read_text(encoding="utf-8")
+        body = self._strip_frontmatter(content_full).lower()
+
+        score = 0.0
+        if query_lower in title:
+            score += 0.65
+        if query_lower in tags:
+            score += 0.20
+
+        occurrences = body.count(query_lower)
+        if occurrences > 0:
+            score += min(0.60, 0.25 + (occurrences * 0.08))
+
+        return min(0.99, score)
 
 
 def smart_search(query: str, top_k: int = 5) -> Dict[str, Any]:

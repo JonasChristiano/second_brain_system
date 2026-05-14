@@ -4,29 +4,65 @@ import argparse
 import json
 import shutil
 import subprocess
+import os
 import sys
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    logging.warning("python-dotenv não instalado, continuando sem carregar .env")
+    pass  # python-dotenv not installed, continue without .env loading
 
 from .help import HelpSystem, cmd_help
 from .llm_adapter import ask
 from .agents.improver import improve_skill
 from .agents.pipeline import run_eval_pipeline
+from . import PROJECT_NAME, PROJECT_SHORT, __author__, __version__
 from .paths import NOTES_DIR, ROOT, SKILLS_DIR, VAULT_NOTES
 from .skills import build_prompt, ensure_skill_exists, list_skills, load_text, slugify
 
 # Second Brain Core modules
 from .core.ingestion import ingest_note
+from .core.processor import process_note as process_note_pipeline
+from .core.linker import auto_link_note
 from .core.search import smart_search
 from .core.optimizer import optimize_vault, cleanup_vault
+from .paths import VAULT_INBOX
+from .rag import build_index as rag_build_index
+
+
+def print_banner() -> None:
+    if os.environ.get("SBS_NO_BANNER") == "1":
+        return
+    print(f"{PROJECT_NAME} ({PROJECT_SHORT})")
+    print(f"Autor: {__author__}")
+    print(f"Versão: {__version__}")
+    print("-" * 48)
 
 
 def run_command(args: list[str]) -> int:
     result = subprocess.run(args, cwd=ROOT)
+    logger.info(f"[COMMAND] Executado: {args}")
+    stdout = getattr(result, "stdout", None)
+    stderr = getattr(result, "stderr", None)
+    if stdout is not None:
+        logger.info(f"[COMMAND] Saida: #{stdout}#")
+    if stderr is not None:
+        logger.info(f"[COMMAND] Erro: #{stderr}#")
     return result.returncode
 
 
 def cmd_add(args: argparse.Namespace) -> int:
     """Add and process a new note using Second Brain ingestion pipeline."""
+    logger.info("[CLI] Comando 'add' iniciado")
+
     # Handle both old format (string) and new format (list)
     content = args.content
     if isinstance(content, list):
@@ -35,13 +71,21 @@ def cmd_add(args: argparse.Namespace) -> int:
     # Set timeout for local LLM if provided
     timeout = getattr(args, "timeout", None)
     if timeout:
-        import os
-
         os.environ["BRAIN_LLM_TIMEOUT"] = str(timeout)
+        logger.debug(f"[CLI] Timeout configurado: {timeout}s")
+
+    MODEL = getattr(args, "model", None) or os.environ.get("BRAIN_MODEL", "qwen3:4b")
+
+    logger.info(
+        f"[CLI] Adicionando nota - Modelo: {MODEL}, Tamanho: {len(content)} chars"
+    )
+    logger.debug(
+        f"[CLI] Conteúdo: {content[:100]}{'...' if len(content) > 100 else ''}"
+    )
 
     print("🧠 Iniciando processamento da nota...")
     print(f"   Conteúdo: {content[:50]}{'...' if len(content) > 50 else ''}")
-    print(f"   Modelo: {getattr(args, 'model', 'claude')}")
+    print(f"   Modelo: {MODEL}")
     if timeout:
         print(f"   Timeout: {timeout}s")
 
@@ -53,25 +97,29 @@ def cmd_add(args: argparse.Namespace) -> int:
             # Fallback to old behavior when vault structure doesn't exist
             raise FileNotFoundError("Vault structure not found")
 
+        logger.info("[CLI] Usando pipeline moderno de ingestão")
         print("\n📝 Salvando nota na inbox...")
         result = ingest_note(
             content=content,
             title=getattr(args, "title", None),
-            model=getattr(args, "model", "claude"),
+            model=getattr(args, "model", MODEL),
             auto_link=not getattr(args, "no_link", False),
             auto_index=not getattr(args, "no_index", False),
         )
 
         if result["success"]:
-            print(f"\n✅ Nota adicionada com sucesso!")
+            logger.info(f"[CLI] Nota adicionada com sucesso: {result['note_path']}")
+            print("\n✅ Nota adicionada com sucesso!")
             print(f"   📄 Arquivo: {result['note_path']}")
             print(f"   🔄 Processos: {', '.join(result['steps'])}")
             return 0
         else:
+            logger.error(f"[CLI] Erro ao adicionar nota: {result['error']}")
             print(f"\n❌ Erro ao adicionar nota: {result['error']}", file=sys.stderr)
             return 1
     except (FileNotFoundError, Exception) as e:
         # Fallback to old behavior for compatibility with existing tests
+        logger.warning(f"[CLI] Vault não encontrado, usando pipeline legado: {e}")
         print("\n🔄 Usando pipeline legado (vault não encontrado)...")
         print("   Construindo prompt...")
         prompt = build_prompt("brain_orchestrator", content, str(NOTES_DIR))
@@ -84,14 +132,24 @@ def cmd_add(args: argparse.Namespace) -> int:
 
 def cmd_search(args: argparse.Namespace) -> int:
     """Smart search with related notes and suggestions."""
+    logger.info("[CLI] Comando 'search' iniciado")
+
     query = args.query
     # Handle both string and list formats
     if isinstance(query, list):
         query = " ".join(query)
 
+    logger.info(f"[CLI] Busca iniciada - Query: '{query}'")
+    top_k = getattr(args, "top_k", 5)
+    logger.debug(f"[CLI] Parâmetros: top_k={top_k}")
+
     try:
-        result = smart_search(query, top_k=getattr(args, "top_k", 5))
-    except Exception:
+        result = smart_search(query, top_k=top_k)
+        logger.info(
+            f"[CLI] Busca concluída - {result.get('total_results', 0)} resultado(s)"
+        )
+    except Exception as e:
+        logger.warning(f"[CLI] Erro na busca inteligente, usando fallback: {e}")
         result = {
             "top_notes": [],
             "related_notes": [],
@@ -101,6 +159,7 @@ def cmd_search(args: argparse.Namespace) -> int:
 
     if not result["top_notes"]:
         # Fallback para o comportamento legado quando não há resultados do novo search
+        logger.info("[CLI] Nenhum resultado encontrado, usando busca legado")
         return run_command([sys.executable, "rag/search.py", query])
 
     print(f"\n🔍 Resultado da busca: '{query}'")
@@ -148,6 +207,75 @@ def cmd_restructure(args: argparse.Namespace) -> int:
 
 
 def cmd_refine(args: argparse.Namespace) -> int:
+    # Se for um arquivo na inbox, use o pipeline do Second Brain e finalize
+    # movendo para notes + indexando.
+    if args.file:
+        note_path = Path(args.file)
+        if note_path.exists() and note_path.is_file():
+            try:
+                is_inbox_note = str(note_path.resolve()).startswith(
+                    str(VAULT_INBOX.resolve())
+                )
+            except Exception:
+                is_inbox_note = str(note_path).startswith(str(VAULT_INBOX))
+
+            if is_inbox_note:
+                model = args.model
+                print("🧹 Refinando nota (pipeline SBS)...")
+                print(f"   📄 Arquivo: {note_path}")
+                if model:
+                    print(f"   🤖 Modelo: {model}")
+
+                process_result = process_note_pipeline(
+                    note_path, model=model or "claude"
+                )
+                if not process_result.get("success", False):
+                    error = process_result.get("error") or "erro desconhecido"
+                    print(f"\n❌ Refinamento falhou: {error}", file=sys.stderr)
+                    return 1
+
+                # Move inbox -> notes (mantém nome final estável)
+                from .core.ingestion import NoteIngestion
+
+                ingestion = NoteIngestion()
+                content = note_path.read_text(encoding="utf-8")
+                inferred_title = ingestion._infer_title_from_content(content)
+
+                # Ensure title exists in frontmatter if frontmatter is present
+                fixed = NoteIngestion.ensure_frontmatter_title(content, inferred_title)
+                if fixed != content:
+                    note_path.write_text(fixed, encoding="utf-8")
+                    content = fixed
+
+                final_path = ingestion._build_final_note_path(
+                    inferred_title, note_path.stem
+                )
+                print("\n📁 Movendo para vault/notes...")
+                note_path.rename(final_path)
+                print(f"   ✓ Movido para: {final_path.name}")
+
+                # Auto-link + index sempre (melhor esforço)
+                print("\n🔗 Executando auto-linking...")
+                try:
+                    link_result = auto_link_note(final_path)
+                    if link_result.get("links_added", 0) > 0:
+                        print(f"   ✓ {link_result['links_added']} links adicionados")
+                    else:
+                        print("   ✓ Nenhum link novo encontrado")
+                except Exception as e:
+                    print(f"   ⚠️  Auto-link falhou: {e}")
+
+                print("\n🗂️  Re-indexando vault (RAG)...")
+                try:
+                    rag_build_index()
+                    print("   ✓ Indexação concluída")
+                except Exception as e:
+                    print(f"   ⚠️  Indexação falhou: {e}")
+
+                print("\n✅ Nota refinada.")
+                return 0
+
+    # Fallback legado (mantido para compatibilidade com testes e uso em batch)
     target = args.file or str(NOTES_DIR)
 
     if args.instruction:
@@ -353,6 +481,16 @@ def build_parser() -> argparse.ArgumentParser:
         prog="brain",
         description="CLI para orquestrar notas, skills e buscas do Brain System.",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Mostra logs no terminal (modo debug).",
+    )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Reduz ao mínimo as mensagens de log no terminal.",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     add_parser = subparsers.add_parser(
@@ -366,13 +504,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_parser.add_argument(
         "--model",
-        default="claude",
-        help="Modelo LLM a usar (padrão: claude).",
+        default=os.environ.get("BRAIN_MODEL", "qwen3:4b"),
+        help="Modelo LLM a usar (padrão: ollama:qwen3:4b).",
     )
     add_parser.add_argument(
         "--modal",
         dest="model",
-        help="Alias para --model. Modelos como ollama:qwen3.5 são aceitos.",
+        help="Alias para --model. Modelos como ollama:qwen3:4b são aceitos.",
     )
     add_parser.add_argument(
         "--no-link", action="store_true", help="Desabilita auto-linking."
@@ -392,7 +530,7 @@ def build_parser() -> argparse.ArgumentParser:
                 if isinstance(ns.content, list)
                 else ns.content,
                 title=getattr(ns, "title", None),
-                model=getattr(ns, "model", "claude"),
+                model=getattr(ns, "model", "ollama:qwen3:4b"),
                 no_link=getattr(ns, "no_link", False),
                 no_index=getattr(ns, "no_index", False),
                 timeout=getattr(ns, "timeout", None),
@@ -597,4 +735,16 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+
+    # Configurar logging para toda a aplicação
+    from .logging_config import setup_logging
+
+    if getattr(args, "quiet", False):
+        setup_logging(level=logging.ERROR, detailed=False)
+    elif getattr(args, "debug", False):
+        setup_logging(level=logging.INFO, detailed=True)
+    else:
+        setup_logging(level=logging.WARNING, detailed=False)
+
+    print_banner()
     return args.func(args)

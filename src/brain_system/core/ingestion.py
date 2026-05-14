@@ -15,6 +15,7 @@ from typing import Dict, Any
 
 from brain_system.core.processor import process_note
 from brain_system.core.linker import auto_link_note
+from brain_system.core.frontmatter import ensure_minimum_frontmatter, infer_title
 from brain_system.paths import VAULT_NOTES, VAULT_INBOX
 from brain_system.rag import build_index as rag_build_index
 
@@ -24,31 +25,27 @@ logger = logging.getLogger(__name__)
 class NoteIngestion:
     """Manages the complete note ingestion pipeline."""
 
-    def __init__(self, inbox_path: Path = None, notes_path: Path = None):
+    def __init__(self, inbox_path: Path | None = None, notes_path: Path | None = None):
         """Initialize ingestion system."""
         self.inbox_path = inbox_path or VAULT_INBOX
         self.notes_path = notes_path or VAULT_NOTES
         self.inbox_path.mkdir(parents=True, exist_ok=True)
         self.notes_path.mkdir(parents=True, exist_ok=True)
 
-    def _sanitize_title(self, title: str) -> str:
-        raw_title = title.strip().splitlines()[0]
+    def _sanitize_title(self, title: str | None) -> str:
+        raw_title = title.strip().splitlines()[0] if title else ""
         raw_title = raw_title.lower()
         raw_title = re.sub(r"[^\w\s-]", "", raw_title)
         raw_title = re.sub(r"[\s-]+", "_", raw_title)
         return raw_title.strip("_")[:64] if raw_title else ""
 
     def _infer_title_from_content(self, content: str) -> str:
-        text = content.strip()
-        if not text:
-            return "nota"
+        return infer_title(content)
 
-        first_line = text.splitlines()[0].strip()
-        if first_line:
-            return first_line
-
-        words = text.split()
-        return "_".join(words[:6]) if words else "nota"
+    @staticmethod
+    def ensure_frontmatter_title(content: str, title: str) -> str:
+        """Backward-compatible helper: ensure minimum frontmatter includes title."""
+        return ensure_minimum_frontmatter(content, defaults={}, ensure_title=True)
 
     def _build_final_note_path(self, title: str, fallback_name: str) -> Path:
         safe_name = self._sanitize_title(title) or fallback_name
@@ -62,7 +59,7 @@ class NoteIngestion:
     def ingest_note(
         self,
         content: str,
-        title: str = None,
+        title: str | None = None,
         model: str = "claude",
         auto_link: bool = True,
         auto_index: bool = True,
@@ -129,7 +126,17 @@ class NoteIngestion:
             )
 
             # Step 3: Move to notes folder with a descriptive filename
-            final_title = title or self._infer_title_from_content(content)
+            processed_content = inbox_note.read_text(encoding="utf-8")
+            processed_fixed = ensure_minimum_frontmatter(
+                processed_content,
+                defaults={"type": "note", "status": "active"},
+                ensure_title=True,
+            )
+            if processed_fixed != processed_content:
+                inbox_note.write_text(processed_fixed, encoding="utf-8")
+                processed_content = processed_fixed
+
+            final_title = title or self._infer_title_from_content(processed_content)
             final_note = self._build_final_note_path(
                 final_title, note_filename.replace(".md", "")
             )
@@ -186,7 +193,7 @@ class NoteIngestion:
 
 def ingest_note(
     content: str,
-    title: str = None,
+    title: str | None = None,
     model: str = "claude",
     auto_link: bool = True,
     auto_index: bool = True,

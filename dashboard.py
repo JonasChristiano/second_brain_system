@@ -1,6 +1,11 @@
 import streamlit as st
 import uuid
+import logging
 from datetime import datetime
+
+# Configurar logging
+logger = logging.getLogger(__name__)
+logger.info("[DASHBOARD] Iniciando aplicação")
 
 st.set_page_config(layout="wide")
 

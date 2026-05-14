@@ -1,5 +1,9 @@
 # Brain System
 
+[![Tests (dev)](https://github.com/JonasChristiano/second_brain_system/actions/workflows/dev-tests-open-pr.yml/badge.svg?branch=dev)](https://github.com/JonasChristiano/second_brain_system/actions/workflows/dev-tests-open-pr.yml)
+[![Version](https://img.shields.io/badge/version-0.4.1-blue.svg)](https://github.com/JonasChristiano/second_brain_system/tags)
+[![Python](https://img.shields.io/badge/python-3.12%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/downloads/)
+
 Sistema local para organizar notas, aplicar skills de IA e consultar uma base de conhecimento em `vault/notes`.
 
 ## 📚 Documentação

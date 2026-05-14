@@ -369,6 +369,6 @@ Criamos um **sistema completo de help** para Brain CLI com:
 
 ---
 
-**Versão**: v0.4.0+
+**Versão**: v0.4.1+
 **Data**: Abril 2026
 **Documentação criada em**: Uma sessão de desenvolvimento

@@ -618,13 +618,13 @@ body"""
                 mock.patch.object(
                     cli, "run_eval_pipeline", return_value=fake_summary
                 ) as pipeline_mock,
-                mock.patch.object(cli, "ROOT", Path("/home/jonas/HD/brain_system")),
+                mock.patch.object(cli, "ROOT", Path(temp_dir)),
                 mock.patch("builtins.print") as print_mock,
             ):
                 self.assertEqual(cli.cmd_eval_run(args), 0)
             pipeline_mock.assert_called_once()
             print_mock.assert_called_once_with(
-                "Eval completo. Resumo salvo em /home/jonas/HD/brain_system/runs/eval_summary_test_skill.json"
+                f"Eval completo. Resumo salvo em {Path(temp_dir) / 'runs' / 'eval_summary_test_skill.json'}"
             )
 
     def test_cmd_improve(self) -> None:

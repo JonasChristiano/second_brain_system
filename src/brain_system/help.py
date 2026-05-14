@@ -31,7 +31,7 @@ class HelpSystem:
                 {
                     "name": "--model",
                     "required": False,
-                    "description": "Modelo LLM a usar (openai, claude, ollama:modelo)",
+                    "description": "Modelo LLM a usar (openai, claude, gemini, ollama:modelo)",
                 },
             ],
             "details": "Utiliza a skill brain_orchestrator para estruturar e processar ideias, salvando-as no vault.",
@@ -116,7 +116,7 @@ class HelpSystem:
                 {
                     "name": "--model",
                     "required": False,
-                    "description": "Modelo LLM a usar",
+                    "description": "Modelo LLM a usar (openai, claude, gemini, ollama:modelo)",
                 },
             ],
             "details": "Aplica técnicas de refinamento e melhoria em notas existentes.",
@@ -162,7 +162,7 @@ class HelpSystem:
                         "nome: Nome da skill a executar",
                         "--target: Caminho/escopo de execução",
                         "--instruction: Instrução complementar",
-                        "--model: Modelo LLM a usar",
+                        "--model: Modelo LLM a usar (openai, claude, gemini, ollama:modelo)",
                         "--dry-run: Mostrar prompt sem executar",
                     ],
                 },
@@ -211,7 +211,7 @@ class HelpSystem:
                 {
                     "name": "--model",
                     "required": False,
-                    "description": "Modelo LLM a usar",
+                    "description": "Modelo LLM a usar (openai, claude, gemini, ollama:modelo)",
                 },
                 {
                     "name": "--verbose",
@@ -309,6 +309,41 @@ class HelpSystem:
             "details": "Inicia modo autônomo onde o sistema seleciona tarefas, executa pipelines multi-agente e melhora-se automaticamente.",
             "output": "Logs de ciclos autônomos com resultados e melhorias",
         },
+        "optimize": {
+            "name": "optimize",
+            "category": "Otimização",
+            "description": "Otimiza o vault através de refinamento, relinking e re-indexação.",
+            "syntax": "brain optimize [--no-relink] [--no-reindex] [--cleanup] [--cleanup-days DIAS]",
+            "examples": [
+                "brain optimize",
+                "brain optimize --no-relink",
+                "brain optimize --cleanup --cleanup-days 60",
+            ],
+            "arguments": [
+                {
+                    "name": "--no-relink",
+                    "required": False,
+                    "description": "Desabilita re-linking automático.",
+                },
+                {
+                    "name": "--no-reindex",
+                    "required": False,
+                    "description": "Desabilita re-indexação.",
+                },
+                {
+                    "name": "--cleanup",
+                    "required": False,
+                    "description": "Arquiva notas antigas durante a otimização.",
+                },
+                {
+                    "name": "--cleanup-days",
+                    "required": False,
+                    "description": "Dias de inatividade antes de arquivar (padrão: 90).",
+                },
+            ],
+            "details": "Executa uma otimização completa do vault, refinando notas, atualizando links e reindexando o conteúdo.",
+            "output": "Resumo das ações realizadas e status de otimização",
+        },
         "help": {
             "name": "help",
             "category": "Ajuda",
@@ -364,6 +399,10 @@ class HelpSystem:
                 cmd = HelpSystem.COMMANDS[cmd_name]
                 desc = cmd.get("description", "Sem descrição")
                 print(f"  {cmd_name:15} - {desc}")
+                if cmd.get("subcommands"):
+                    for subcmd_name, subcmd_info in cmd["subcommands"].items():
+                        sub_desc = subcmd_info.get("description", "Sem descrição")
+                        print(f"    {subcmd_name:13} - {sub_desc}")
 
         HelpSystem._print_usage_tips()
 
@@ -554,31 +593,6 @@ def cmd_help(args: Any) -> int:
     elif getattr(args, "examples", False):
         HelpSystem.print_examples()
     else:
-        # Ajuda padrão
-        HelpSystem.print_header("BEM-VINDO AO BRAIN SYSTEM")
-        print("""
-O Brain System é um assistente inteligente para organização e processamento
-de notas em seu vault pessoal, com suporte a skills customizáveis e LLMs.
-
-MODO DE USO:
-  brain <comando> [opções]
-
-COMANDOS PRINCIPAIS:
-  add          - Adicionar e processar nova ideia
-  search       - Buscar no índice RAG
-  skills       - Gerenciar skills (list, show, new, run)
-  eval         - Avaliar performance de skill
-  improve      - Melhorar skill a partir de análise
-  autonomous   - Modo autônomo
-
-AJUDA RÁPIDA:
-  brain help                    - Esta mensagem
-  brain help <comando>          - Ajuda detalhada de um comando
-  brain help --list             - Lista todos os comandos por categoria
-  brain help --quick            - Referência rápida
-  brain help --examples         - Exemplos práticos
-  brain <comando> --help        - Ajuda integrada do comando
-""")
-        HelpSystem._print_usage_tips()
+        HelpSystem.print_command_list()
 
     return 0

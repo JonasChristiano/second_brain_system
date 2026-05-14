@@ -119,7 +119,7 @@ Além da documentação escrita, use o help integrado:
 ✓ Comandos Documentados:   15+
 ✓ Exemplos de Uso:         40+
 ✓ Workflows Práticos:      7
-✓ Testes:                  44/44 ✓
+✓ Testes:                  53/53 ✓
 ```
 
 ---
@@ -217,6 +217,6 @@ docs/
 
 ---
 
-**Versão**: v0.4.0+  
+**Versão**: v0.4.1+  
 **Data**: Abril 2026  
 **Status**: ✅ Completo
