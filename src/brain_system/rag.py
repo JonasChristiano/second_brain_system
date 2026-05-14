@@ -1,6 +1,7 @@
 from __future__ import annotations
 import os
 import logging
+from typing import Any
 
 try:
     import chromadb
@@ -38,10 +39,8 @@ def _configure_settings() -> None:
         model_name=embed_model_name, base_url=OLLAMA_URL
     )
 
-    from llama_index.llms.ollama import Ollama
-
-    ollama_model_name = os.environ.get("OLLAMA_MODEL", "qwen3:4b")
-    Settings.llm = Ollama(model=ollama_model_name, base_url=OLLAMA_URL)
+    # Busca semântica deste projeto usa recuperação vetorial (retriever), então
+    # não configuramos LLM aqui para evitar exigir modelos grandes em memória.
 
 
 def _store() -> "ChromaVectorStore":
@@ -68,7 +67,7 @@ def build_index() -> None:
     print("Index pronto")
 
 
-def search(query: str) -> list[dict[str, str | float]]:
+def search(query: str) -> list[dict[str, Any]]:
     if not CHROMADB_AVAILABLE:
         result = f"resultado:{query}"
         print(result)
@@ -78,8 +77,38 @@ def search(query: str) -> list[dict[str, str | float]]:
         _configure_settings()
         store = _store()
         index = VectorStoreIndex.from_vector_store(store)
-        response = index.as_query_engine().query(query)
-        return [{"content": str(response), "score": 1.0}]
+        # Query via retriever avoids response synthesis with LLM, reducing RAM usage.
+        retriever = index.as_retriever(similarity_top_k=5)
+        nodes = retriever.retrieve(query)
+
+        results: list[dict[str, Any]] = []
+        for item in nodes:
+            node = getattr(item, "node", None)
+            if node is None:
+                content = str(item)
+                metadata: dict[str, Any] = {}
+            else:
+                if hasattr(node, "get_content"):
+                    content = node.get_content()
+                else:
+                    content = str(node)
+                metadata = getattr(node, "metadata", {}) or {}
+            score = getattr(item, "score", 0.0) or 0.0
+            source_path = (
+                metadata.get("file_path")
+                or metadata.get("file_name")
+                or metadata.get("filename")
+                or metadata.get("source")
+            )
+            results.append(
+                {
+                    "content": str(content),
+                    "score": float(score),
+                    "source": str(source_path) if source_path else None,
+                }
+            )
+
+        return results
     except Exception as e:
         print(f"Erro na busca: {e}")
         return []
