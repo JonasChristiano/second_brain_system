@@ -1,135 +1,59 @@
-# Brain System
+# Second Brain System
 
-[![Tests (dev)](https://github.com/JonasChristiano/second_brain_system/actions/workflows/dev-tests-open-pr.yml/badge.svg?branch=dev)](https://github.com/JonasChristiano/second_brain_system/actions/workflows/dev-tests-open-pr.yml)
-[![Version](https://img.shields.io/badge/version-0.4.1-blue.svg)](https://github.com/JonasChristiano/second_brain_system/tags)
-[![Python](https://img.shields.io/badge/python-3.12%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/downloads/)
+Sistema pessoal em Python para organizar notas em Markdown, recuperar conhecimento por busca semântica e executar tarefas com modelos de linguagem.
 
-Sistema local para organizar notas, aplicar skills de IA e consultar uma base de conhecimento em `vault/notes`.
+**Estado:** protótipo funcional, com desenvolvimento pausado por limitações de recursos para inferência local e APIs pagas. Ainda precisa de refinamento; não é um serviço de produção.
 
-## 📚 Documentação
+## O que foi desenvolvido
 
-**Comece aqui**: [docs/README.md](docs/README.md)
+- CLI para criar, organizar, indexar e pesquisar notas.
+- Recuperação semântica com LlamaIndex, ChromaDB e embeddings via Ollama.
+- Integração com modelos locais e cliente Gemini para processamento de conteúdo.
+- Execução de skills locais, com contexto recuperado e registros de execução.
+- Dashboard experimental em Streamlit. A interface mantém notas em sessão e ainda não integra todo o fluxo persistente da CLI.
 
-Toda a documentação está organizada em uma pasta única:
-- **[INSTALLATION.md](docs/INSTALLATION.md)** - Como instalar e configurar
-- **[BRAIN_CLI_GUIDE.md](docs/BRAIN_CLI_GUIDE.md)** - Referência completa de comandos
-- **[CHEAT_SHEET.md](docs/CHEAT_SHEET.md)** - Tabela rápida de comandos (imprima!)
-- **[NAVIGATION.md](docs/NAVIGATION.md)** - Mapa de navegação para encontrar informação
+O projeto demonstra integração de componentes de IA, organização de dados e automação em Python. Os clientes legados de OpenAI e Claude precisam de revisão de compatibilidade antes de uso.
 
-Ou use o help interativo:
+## Começar
+
+Requer Python 3.12 ou superior e [uv](https://docs.astral.sh/uv/getting-started/installation/). Execute os comandos na raiz do projeto:
+
 ```bash
-./brain help                # Bem-vindo
-./brain help <comando>      # Ajuda de comando
-./brain help --quick        # Workflows rápidos
-./brain help --examples     # 7 exemplos práticos
+git clone https://github.com/JonasChristiano/second_brain_system.git
+cd second_brain_system
+uv sync --locked
+uv run python brain --help
 ```
+
+A configuração de modelos, embeddings e diretórios está no [guia de instalação](docs/INSTALLATION.md).
+
+```bash
+uv run python brain add "Uma nota sobre integração de sistemas" --model ollama:qwen3:4b
+uv run python brain index
+uv run python brain search "integração de sistemas" --top-k 5
+uv run python brain skills list
+```
+
+Os três primeiros comandos dependem dos modelos e serviços configurados. O dashboard pode ser aberto separadamente com `uv run streamlit run dashboard.py`.
 
 ## Estrutura
 
-- `brain`: ponto de entrada da CLI
-- `src/brain_system/`: logica principal do projeto
-- `context.md`: contexto global do sistema
-- `skills/`: skills locais em Markdown
-- `rag/`: wrappers simples para indexacao e busca
-- `vault/`: notas e anexos em um Git separado
+| Caminho | Responsabilidade |
+| --- | --- |
+| `brain` | Entrada da CLI |
+| `src/brain_system/` | Notas, busca, clientes de modelos e orquestração |
+| `skills/` | Definições locais de tarefas |
+| `dashboard.py` | Interface experimental |
+| `tests/` | Testes automatizados |
+| `docs/` | Documentação complementar |
 
-## Organizacao atual
+Por padrão, o vault fica em `vault/`, o índice em `.chroma/` e o contexto em `.codex/context.md`. As variáveis `BRAIN_ROOT` e `BRAIN_VAULT_DIR` permitem ajustar os caminhos.
 
-- `src/brain_system/cli.py`: comandos da CLI
-- `src/brain_system/skills.py`: leitura e composicao de prompts de skills
-- `src/brain_system/vault_watch.py`: auto-commit do vault
-- `src/brain_system/rag.py`: indexacao e busca vetorial
-- `src/brain_system/paths.py`: caminhos centrais do projeto
-- `src/brain_system/llm/`: clients provider-agnosticos para LLMs (OpenAI, Claude, Ollama)
-- `src/brain_system/agents/`: pipeline de agentes para execucao, avaliacao e melhoria de skills
-- `docs/`: documentação completa (README, guias, referência)
+## Limitações e próximos passos
 
-## Uso rapido
+- O desempenho depende do hardware, dos modelos escolhidos e dos limites das APIs.
+- A qualidade das respostas precisa de avaliação por tarefa; não há garantia de exatidão.
+- Notas e prompts podem aparecer nos registros de execução. Revise os dados antes de compartilhá-los ou enviá-los a um provedor externo.
+- Permanecem pendentes a integração do dashboard, a revisão dos clientes legados e o refinamento da experiência de uso.
 
-**Primeiros passos**:
-```bash
-./brain help                # Ver ajuda
-./brain help --quick        # Referência rápida (2 min)
-./brain help --examples     # 7 exemplos práticos
-```
-
-**Comandos principais**:
-```bash
-python3 brain skills list
-python3 brain skills show brain_orchestrator
-python3 brain skills new resumo_tecnico --goal "Resumir notas tecnicas com clareza"
-python3 brain skills run note_refinement --target vault/notes --instruction "Refinar notas mantendo os links"
-python3 brain add "Skill de IA define um comportamento reutilizavel"
-python3 brain index
-python3 brain search "o que e skill de IA?"
-python3 brain refine
-python3 brain refine vault/notes/comando-cat.md
-python3 brain restructure
-python3 brain watch
-python3 brain eval-run --eval-set eval_set.json --skill minha_skill
-python3 brain improve --skill minha_skill --analysis runs/eval_minha_skill/analysis.json
-```
-
-**Para documentação completa**, veja [docs/README.md](docs/README.md)
-
-## Testes
-
-```bash
-python3 -m unittest discover -s tests -v
-python3 tests/check_coverage.py
-```
-
-O segundo comando valida cobertura próxima de 100% nos arquivos de codigo do projeto (algumas linhas de return/raise são consideradas não executáveis pelo tracer).
-
-## Fluxo sugerido
-
-1. Criar ou ajustar uma skill em `skills/`.
-2. Executar a skill com `python3 brain skills run ...`.
-3. Avaliar a skill com `python3 brain eval-run ...`.
-4. Melhorar a skill com `python3 brain improve ...`.
-3. Quando houver novas notas, reconstruir o indice com `python3 brain index`.
-4. Consultar o conhecimento com `python3 brain search ...`.
-5. Ao importar um vault real, executar `python3 brain restructure`.
-6. Se quiser commits automaticos no vault, manter `python3 brain watch` em execucao.
-
-## Formato de skill
-
-As skills seguem um formato simples em Markdown:
-
-```md
-id: nome_da_skill
-title: Nome da Skill
-version: 1.0
-last_updated: 2026-04-23
-scope: vault/notes
-
-Objetivo:
-- descrever o que a skill faz
-
-Quando usar:
-- descrever os cenarios de ativacao
-
-Passos:
-1. descrever a sequencia principal
-
-Regras:
-- definir comportamento
-- indicar limites
-- explicar o formato de saida
-
-Saida esperada:
-- descrever o resultado final
-```
-
-O `brain` combina automaticamente o contexto global, a skill selecionada e a instrucao passada no terminal antes de chamar o `codex`.
-
-## Auto-commit do vault
-
-O comando `python3 brain watch` monitora o diretorio `vault/` e cria commits locais automaticamente no repositorio Git interno dessa pasta.
-Ele considera criacao, edicao, renomeacao e delecao de arquivos, ignorando apenas o conteudo interno de `vault/.git/`.
-
-## Reestruturacao do vault
-
-O comando `python3 brain restructure` prepara um vault existente para a estrutura padrao do projeto.
-Ele garante as pastas `notes/`, `attachments/`, `templates/`, `inbox/` e `archive/`, move arquivos Markdown soltos para `notes/` e move outros anexos para `attachments/`.
-Pastas ja estruturadas e o conteudo interno de `vault/.git/` sao preservados.
+Os testes não substituem uma validação completa com serviços reais de IA. Consulte a licença e os arquivos do repositório para detalhes do código.

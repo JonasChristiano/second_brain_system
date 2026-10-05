@@ -1,343 +1,71 @@
-# Brain System - Instalação e Configuração
+# Instalação e configuração
 
-## 🔧 Instalação Local
+Este guia se refere ao código deste repositório. Não pressupõe um pacote publicado no PyPI nem caminhos específicos do computador do autor.
 
-### 1. Instalação Padrão
+## Ambiente Python
 
-```bash
-cd /home/jonas/HD/brain_system
-
-# Instalar em modo editable
-pip install -e .
-
-# Verificar instalação
-python3 -c "import brain_system; print(brain_system.__file__)"
-```
-
-### 2. Fazer Executável Global
+Requer Python 3.12 ou superior e [uv](https://docs.astral.sh/uv/getting-started/installation/). Na raiz do clone:
 
 ```bash
-# Tornar script executável
-chmod +x ./brain
-
-# Opção A: Adicionar ao PATH
-export PATH="$PATH:/home/jonas/HD/brain_system"
-
-# Opção B: Criar symlink em /usr/local/bin
-sudo ln -s /home/jonas/HD/brain_system/brain /usr/local/bin/brain
-
-# Opção C: Criar alias em ~/.bashrc
-echo "alias brain='/home/jonas/HD/brain_system/brain'" >> ~/.bashrc
-source ~/.bashrc
+uv sync --locked
+uv run python brain --help
 ```
 
-### 3. Verificar Instalação
+O `uv` cria o ambiente virtual e instala as dependências do `uv.lock`. Não é necessário ativá-lo para executar os comandos com `uv run`.
+
+## Embeddings e busca semântica
+
+A busca usa embeddings via Ollama, inclusive quando o processamento de notas usa uma API externa. Com Ollama instalado e o serviço local ativo:
 
 ```bash
-# Testar comando
-brain help
-
-# Verificar versão
-brain --version  # (se implementado)
-
-# Ver localização
-which brain
+ollama pull mxbai-embed-large:latest
+export OLLAMA_EMBED_MODEL='mxbai-embed-large:latest'
 ```
 
-## 🌍 Variáveis de Ambiente
+O endereço padrão é `http://localhost:11434`. A configuração do índice está em `src/brain_system/rag.py`.
 
-### Configuração Mínima
+## Processamento com modelo local
 
 ```bash
-# Criar arquivo .env na raiz do projeto
-cat > /home/jonas/HD/brain_system/.env << 'EOF'
-# Modelo LLM padrão
-BRAIN_MODEL=claude
-
-# Chaves de API
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-
-# Diretórios customizados (opcional)
-BRAIN_VAULT_DIR=/home/jonas/HD/brain_system/vault
-BRAIN_SKILLS_DIR=/home/jonas/HD/brain_system/skills
-BRAIN_LOGS_DIR=/home/jonas/HD/brain_system/logs
-EOF
-
-# Carregar no shell
-source /home/jonas/HD/brain_system/.env
+ollama pull qwen3:4b
+uv run python brain add "Minha primeira nota" --model ollama:qwen3:4b
 ```
 
-### No ~/.bashrc ou ~/.zshrc
+Escolha um modelo compatível com os recursos disponíveis. `--timeout` ajusta o tempo limite do comando `add`.
+
+## Processamento com Gemini
+
+Configure `GEMINI_API_KEY` ou `GOOGLE_API_KEY` no ambiente, ou em um arquivo local `.env`, que já está ignorado pelo Git. Não publique a chave. `GEMINI_MODEL` permite escolher o modelo, e `BRAIN_MODEL` seleciona o cliente para os fluxos que usam essa variável.
 
 ```bash
-# Adicionar ao final do arquivo
-export BRAIN_MODEL=claude
-export OPENAI_API_KEY="sk-..."
-export ANTHROPIC_API_KEY="sk-ant-..."
-
-# Alias úteis
-alias b='brain'
-alias bs='brain skills'
-alias bsr='brain search'
-alias bh='brain help'
-
-# Função helper
-brain-setup() {
-    cd /home/jonas/HD/brain_system
-    source .env
-    brain help
-}
+uv run python brain add "Minha primeira nota" --model gemini
 ```
 
-## 📋 Estrutura de Diretórios
+A chave, o modelo e a disponibilidade da API precisam ser válidos. Esse fluxo pode gerar custos. Os clientes OpenAI e Claude usam interfaces legadas e precisam de atualização antes de serem considerados alternativas compatíveis.
 
-```
-/home/jonas/HD/brain_system/
-├── brain              # Script executável
-├── src/
-│   └── brain_system/
-│       ├── __init__.py
-│       ├── cli.py
-│       ├── help.py        # ← Sistema de help
-│       ├── skills.py
-│       ├── rag.py
-│       ├── paths.py
-│       ├── llm_adapter.py
-│       ├── agents/        # Agentes autônomos
-│       ├── llm/           # Clientes LLM
-│       └── infra/         # Observabilidade
-│
-├── vault/
-│   ├── notes/             # Notas principais
-│   ├── archive/           # Arquivos antigos
-│   ├── attachments/       # Anexos
-│   ├── inbox/             # Entrada rápida
-│   └── templates/         # Templates
-│
-├── skills/                # Skills customizáveis
-│   ├── brain_orchestrator/
-│   ├── note_refinement/
-│   └── ...
-│
-├── tests/                 # Testes unitários
-├── logs/
-│   ├── observability.jsonl
-│   └── improvements.log
-│
-├── runs/                  # Resultados de execuções
-├── pyproject.toml         # Configuração Python
-├── README.md
-├── BRAIN_CLI_GUIDE.md     # Guia completo
-├── CHEAT_SHEET.md         # Referência rápida
-└── HELPER_SUMMARY.md      # Este arquivo
-```
-
-## 🎯 Primeiros Passos
-
-### 1. Setup Inicial
+## Comandos básicos
 
 ```bash
-cd /home/jonas/HD/brain_system
-
-# Instalar dependências
-pip install -e .
-
-# Verificar testes
-python3 tests/check_coverage.py
-
-# Ver ajuda
-./brain help
+uv run python brain index
+uv run python brain search "Minha primeira nota" --top-k 5
+uv run python brain skills list
+uv run python brain skills new exemplo --goal "Organizar uma nota"
 ```
 
-### 2. Configurar LLM
+Use `uv run python brain <comando> --help` para consultar as opções atuais. `BRAIN_ROOT` altera a raiz de dados; `BRAIN_VAULT_DIR` altera o vault. Execute a CLI a partir da raiz do projeto para usar os caminhos padrão.
+
+## Dashboard experimental
 
 ```bash
-# Escolher provider (OpenAI, Claude ou Local)
-
-# OpenAI
-export OPENAI_API_KEY="sk-..."
-
-# Anthropic Claude
-export ANTHROPIC_API_KEY="sk-ant-..."
-
-# Local (Ollama)
-# Instalar Ollama: https://ollama.ai
-# ollama pull llama2
-# ollama pull neural-chat
+uv run streamlit run dashboard.py
 ```
 
-### 3. Primeira Execução
+A interface usa estado de sessão e ainda não substitui o armazenamento e a busca da CLI.
+
+## Verificação
 
 ```bash
-# Ver ajuda
-./brain help
-
-# Adicionar primeira nota
-./brain add "Aprendendo Brain System"
-
-# Indexar
-./brain index
-
-# Buscar
-./brain search "Brain System"
+uv run python -m unittest discover -s tests -v
 ```
 
-## 🔍 Verificação de Saúde
-
-```bash
-#!/bin/bash
-# scripts/health_check.sh
-
-echo "🔍 Verificação de Saúde do Brain System"
-echo "========================================"
-
-# 1. Python
-echo -n "Python: "
-python3 --version
-
-# 2. Dependências
-echo -n "brain_system: "
-python3 -c "import brain_system; print('OK')" 2>/dev/null || echo "FALHA"
-
-# 3. Executável
-echo -n "Script brain: "
-[ -x ./brain ] && echo "OK" || echo "FALHA"
-
-# 4. Testes
-echo -n "Testes: "
-python3 tests/check_coverage.py > /dev/null 2>&1 && echo "OK" || echo "FALHA"
-
-# 5. Help
-echo -n "Sistema de help: "
-./brain help > /dev/null 2>&1 && echo "OK" || echo "FALHA"
-
-echo "========================================"
-echo "✓ Verificação concluída"
-```
-
-## 🐛 Troubleshooting
-
-### Erro: "comando não encontrado"
-
-```bash
-# Solução 1: Use caminho completo
-/home/jonas/HD/brain_system/brain help
-
-# Solução 2: Adicione ao PATH
-export PATH="$PATH:/home/jonas/HD/brain_system"
-
-# Solução 3: Crie symlink
-sudo ln -s /home/jonas/HD/brain_system/brain /usr/local/bin/brain
-```
-
-### Erro: "ModuleNotFoundError: No module named 'brain_system'"
-
-```bash
-# Instalar em modo editable
-pip install -e /home/jonas/HD/brain_system
-
-# Ou adicionar ao PYTHONPATH
-export PYTHONPATH="$PYTHONPATH:/home/jonas/HD/brain_system/src"
-```
-
-### Erro: "API Key não encontrada"
-
-```bash
-# Verificar variáveis
-echo $OPENAI_API_KEY
-echo $ANTHROPIC_API_KEY
-
-# Configurar
-export OPENAI_API_KEY="sk-..."
-# ou
-export ANTHROPIC_API_KEY="sk-ant-..."
-```
-
-### Help não funciona
-
-```bash
-# Verificar se help.py existe
-ls -la src/brain_system/help.py
-
-# Testar help diretamente
-python3 -c "from brain_system.help import HelpSystem; HelpSystem.print_header('teste')"
-```
-
-## 📦 Distribuição
-
-### Para Outros Usuários
-
-```bash
-# 1. Package com pip
-python3 -m pip install --upgrade build
-python3 -m build
-
-# 2. Fazer upload (PyPI)
-python3 -m twine upload dist/*
-
-# 3. Instalar globalmente
-pip install brain-system
-
-# Depois usar
-brain help
-```
-
-## 🚀 Uso Diário
-
-```bash
-# Setup no shell
-source ~/.bashrc  # Carregar aliases
-
-# Usar
-brain help                      # Ver ajuda
-b add "Minha ideia"            # Usando alias
-bs list                        # Listar skills
-brain help --quick             # Referência rápida
-```
-
-## 📊 Performance
-
-Para operações em larga escala:
-
-```bash
-# Otimizar índice
-brain index --rebuild
-
-# Monitore performance
-watch -n 1 'tail logs/observability.jsonl'
-
-# Parallel processing
-brain eval --eval-set tests/eval.json --skill minha_skill --num-workers 10
-```
-
-## 🔐 Segurança
-
-```bash
-# Nunca commitar chaves de API
-echo ".env" >> .gitignore
-echo "logs/" >> .gitignore
-echo "runs/" >> .gitignore
-
-# Usar secrets manager (opcional)
-# export $(cat .env | xargs)  # Somente local
-
-# Auditar permissões
-ls -la logs/
-chmod 600 .env  # Arquivo sensível
-```
-
-## 📞 Suporte
-
-Para problemas ou dúvidas:
-
-1. Consulte `brain help --examples`
-2. Leia `BRAIN_CLI_GUIDE.md`
-3. Verifique `logs/observability.jsonl`
-4. Abra issue no repositório
-
----
-
-**Data**: Abril 2026
-**Versão**: v0.4.1+
-**Maintainer**: Jonas
+Há testes com dependências simuladas. A aprovação deles não demonstra disponibilidade de provedores, qualidade de respostas ou funcionamento de todos os modelos em hardware real.
